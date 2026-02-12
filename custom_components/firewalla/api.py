@@ -244,9 +244,9 @@ class FirewallaApiClient:
                         # If online status is not explicitly set, determine from lastActiveTimestamp
                         last_active = device.get("lastActiveTimestamp")
                         if last_active:
-                            # Consider device offline if last active more than 5 minutes ago
+                            # Consider device offline if last active more than 15 minutes ago
                             now = datetime.now().timestamp() * 1000
-                            device["online"] = (now - last_active) < (5 * 60 * 1000)
+                            device["online"] = (now - last_active) < (15 * 60 * 1000)
                         else:
                             device["online"] = False
                 
@@ -264,95 +264,21 @@ class FirewallaApiClient:
             return []
 
     async def get_rules(self) -> List[Dict[str, Any]]:
-        """Get all rules."""
-        rules = []
+        """Get all rules - DISABLED."""
         try:
-            # Get the rules from the API
-            rules_response = await self._api_request("GET", "rules")
-            
-            if not rules_response:
-                _LOGGER.warning("No rules found or endpoint not available")
-                return []
-                
-            # Check if the response is a dictionary with a 'results' key
-            if isinstance(rules_response, dict) and "results" in rules_response:
-                rules = rules_response["results"]
-                _LOGGER.debug("Extracted rules from 'results' key")
-            else:
-                rules = rules_response
-                
-            # Check if rules is a list
-            if not isinstance(rules, list):
-                _LOGGER.warning("Rules data is not a list: %s", rules)
-                return []
-                
-            # Process rules to ensure they have an id
-            processed_rules = []
-            for rule in rules:
-                if isinstance(rule, dict):
-                    # If rule doesn't have an id but has a uuid, use that as id
-                    if "id" not in rule and "uuid" in rule:
-                        rule["id"] = rule["uuid"]
-                    # If rule doesn't have an id but has a name, use that as id
-                    elif "id" not in rule and "name" in rule:
-                        rule["id"] = f"rule_{rule['name']}"
-                    # If rule still doesn't have an id, generate one
-                    elif "id" not in rule:
-                        rule["id"] = f"rule_{len(processed_rules)}"
-                    
-                    processed_rules.append(rule)
-            
-            _LOGGER.debug("Retrieved a total of %s rules", len(processed_rules))
-            return processed_rules
-            
+            _LOGGER.debug("Skipping flows to prevent entity bloat")
+            return []
         except Exception as exc:
-            _LOGGER.warning("Error getting rules (endpoint may not be available): %s", exc)
+            _LOGGER.warning("Error getting flows: %s", exc)
             return []
 
     async def get_alarms(self) -> List[Dict[str, Any]]:
-        """Get all alarms."""
-        alarms = []
+        """Get all alarms - DISABLED."""
         try:
-            # Get the alarms from the API
-            alarms_response = await self._api_request("GET", "alarms")
-        
-            if not alarms_response:
-                _LOGGER.warning("No alarms found or endpoint not available")
-                return []
-            
-            # Check if the response is a dictionary with a 'results' key
-            if isinstance(alarms_response, dict) and "results" in alarms_response:
-                alarms = alarms_response["results"]
-                _LOGGER.debug("Extracted alarms from 'results' key")
-            else:
-                alarms = alarms_response
-            
-            # Check if alarms is a list
-            if not isinstance(alarms, list):
-                _LOGGER.warning("Alarms data is not a list: %s", alarms)
-                return []
-            
-            # Process alarms to ensure they have an id
-            processed_alarms = []
-            for alarm in alarms:
-                if isinstance(alarm, dict):
-                    # If alarm doesn't have an id but has aid, use that as id
-                    if "id" not in alarm and "aid" in alarm:
-                        alarm["id"] = f"alarm_{alarm['aid']}"
-                    # If alarm doesn't have an id but has a type, use that as id
-                    elif "id" not in alarm and "type" in alarm:
-                        alarm["id"] = f"alarm_{alarm['type']}_{len(processed_alarms)}"
-                    # If alarm still doesn't have an id, generate one
-                    elif "id" not in alarm:
-                        alarm["id"] = f"alarm_{len(processed_alarms)}"
-                
-                processed_alarms.append(alarm)
-        
-            _LOGGER.debug("Retrieved a total of %s alarms", len(processed_alarms))
-            return processed_alarms
-        
+            _LOGGER.debug("Skipping flows to prevent entity bloat")
+            return []
         except Exception as exc:
-            _LOGGER.warning("Error getting alarms (endpoint may not be available): %s", exc)
+            _LOGGER.warning("Error getting flows: %s", exc)
             return []
 
     async def get_flows(self) -> List[Dict[str, Any]]:
@@ -363,4 +289,3 @@ class FirewallaApiClient:
         except Exception as exc:
             _LOGGER.warning("Error getting flows: %s", exc)
             return []
-
