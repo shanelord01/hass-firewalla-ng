@@ -264,12 +264,39 @@ class FirewallaApiClient:
         return await self._api_request("GET", "rules")
 
     async def get_alarms(self) -> List[Dict[str, Any]]:
-        """Get all alarms."""
-        result = await self._api_request("GET", "alarms")
-        # Ensure we return a list even if the API wraps it in a dict
-        if isinstance(result, dict):
-            return result.get("alarms", result.get("data", []))
-        return result if isinstance(result, list) else []
+        """Get all alarms from the API."""
+        try:
+            # 1. Fetch the raw response
+            alarms_response = await self._api_request("GET", "alarms")
+        
+            if not alarms_response:
+                _LOGGER.warning("No alarms found or endpoint not available")
+                return []
+            
+            # 2. Extract the list if it's wrapped in a 'results' key
+            if isinstance(alarms_response, dict) and "results" in alarms_response:
+                alarms = alarms_response["results"]
+            else:
+                alarms = alarms_response
+            
+            # 3. Final type check to prevent downstream crashes
+            if not isinstance(alarms, list):
+                _LOGGER.warning("Alarms data is not a list: %s", alarms)
+                return []
+            
+            # 4. ID processing (Your existing logic)
+            processed_alarms = []
+            for alarm in alarms:
+                if isinstance(alarm, dict):
+                    if "id" not in alarm:
+                        alarm["id"] = f"alarm_{alarm.get('aid', len(processed_alarms))}"
+                    processed_alarms.append(alarm)
+        
+            return processed_alarms
+            
+        except Exception as exc:
+            _LOGGER.error("Error getting alarms: %s", exc)
+            return []
 
     async def get_flows(self) -> List[Dict[str, Any]]:
         """Get all flows."""
