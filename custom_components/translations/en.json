@@ -10,6 +10,7 @@
             "enable_alarms": "Enable Alarms",
             "enable_rules": "Enable Rules",
             "enable_flows": "Enable Flows (Heavy)"
+            "enable_traffic": "Enable Traffic (Heavy)"
           }
         }
       },
