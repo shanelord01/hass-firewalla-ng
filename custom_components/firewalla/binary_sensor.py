@@ -20,11 +20,11 @@ from .const import (
     ATTR_DEVICE_ID, 
     ATTR_NETWORK_ID,
     ATTR_RULE_ID,
-    API_CLIENT
+    CONF_ENABLE_ALARMS,
+    CONF_ENABLE_RULES
 )
 
 _LOGGER = logging.getLogger(__name__)
-
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
@@ -32,51 +32,39 @@ async def async_setup_entry(
     """Set up Firewalla binary sensors based on a config entry."""
     coordinator = hass.data[DOMAIN][entry.entry_id].get(COORDINATOR)
     
+    # 1. Retrieve the boolean flags
+    enable_alarms = entry.options.get(CONF_ENABLE_ALARMS, entry.data.get(CONF_ENABLE_ALARMS, False))
+    enable_rules = entry.options.get(CONF_ENABLE_RULES, entry.data.get(CONF_ENABLE_RULES, False))
+
     if not coordinator:
         _LOGGER.error("No coordinator found for entry %s", entry.entry_id)
         return
     
     entities = []
     
-    # Add online status sensors for each device
+    # 2. Add online status sensors for each device (CORE - Always Enabled)
     if coordinator.data and "devices" in coordinator.data:
         for device in coordinator.data["devices"]:
             if isinstance(device, dict) and "id" in device:
                 entities.append(FirewallaOnlineSensor(coordinator, device))
-                
-                # We're removing these sensors as requested:
-                # - Blocked count
-                # - Download rate
-                # - Upload rate
-            else:
-                _LOGGER.warning("Skipping device without id: %s", device)
     
-    # Add online status sensors for each box
-    if coordinator.data and "boxes" in coordinator.data:
-        for box in coordinator.data["boxes"]:
-            if isinstance(box, dict) and "id" in box:
-                entities.append(FirewallaBoxOnlineSensor(coordinator, box))
-            else:
-                _LOGGER.warning("Skipping box without id: %s", box)
-    
-    # Add alarm sensors
-    if coordinator.data and "alarms" in coordinator.data:
+    # 3. Add individual alarm sensors (OPTIONAL)
+    # Note: Since you preferred the "Summary Sensor" in sensor.py, 
+    # most users keep this disabled to save resources.
+    if enable_alarms and coordinator.data and "alarms" in coordinator.data:
+        _LOGGER.debug("Individual alarm binary sensors enabled")
         for alarm in coordinator.data["alarms"]:
             if isinstance(alarm, dict) and "id" in alarm:
                 entities.append(FirewallaAlarmSensor(coordinator, alarm))
-            else:
-                _LOGGER.warning("Skipping alarm without id: %s", alarm)
     
-    # Add rule status sensors
-    if coordinator.data and "rules" in coordinator.data:
+    # 4. Add rule status sensors (OPTIONAL)
+    if enable_rules and coordinator.data and "rules" in coordinator.data:
+        _LOGGER.debug("Rule status sensors enabled")
         for rule in coordinator.data["rules"]:
             if isinstance(rule, dict) and "id" in rule:
                 entities.append(FirewallaRuleStatusSensor(coordinator, rule))
-            else:
-                _LOGGER.warning("Skipping rule without id: %s", rule)
     
     async_add_entities(entities)
-
 
 class FirewallaOnlineSensor(CoordinatorEntity, BinarySensorEntity):
     """Binary sensor for Firewalla device online status."""
