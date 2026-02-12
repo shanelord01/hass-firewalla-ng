@@ -586,27 +586,17 @@ class FirewallaFlowSensor(CoordinatorEntity, SensorEntity):
 class FirewallaRecentAlarmsSensor(CoordinatorEntity, SensorEntity):
     """Sensor that summarizes recent Firewalla security alarms."""
 
-    def __init__(self, coordinator):
-        super().__init__(coordinator)
-        self._attr_name = "Firewalla Recent Alarms"
-        self._attr_unique_id = f"{DOMAIN}_recent_alarms_global"
-        self._attr_icon = "mdi:shield-alert"
-
     @property
     def native_value(self):
         """Return the most recent alarm message."""
-        # 1. Safely get the list from the coordinator
+        # Check if data exists and is a list
         data = self.coordinator.data.get("alarms", []) if self.coordinator.data else []
         
-        # 2. Check if it's a list and has items
-        if not isinstance(data, list) or not data:
+        if not isinstance(data, list) or len(data) == 0:
             return "No Alarms"
             
-        # 3. Access index 0 safely
         latest = data[0]
-        
-        # 4. Use the specific keys shown in your screenshot
-        # Firewalla typically uses 'message', 'msg', or 'type'
+        # Safely get the message
         return latest.get("message", latest.get("msg", latest.get("type", "Unknown Event")))
 
     @property
