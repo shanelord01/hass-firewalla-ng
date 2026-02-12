@@ -586,31 +586,18 @@ class FirewallaFlowSensor(CoordinatorEntity, SensorEntity):
 class FirewallaRecentAlarmsSensor(CoordinatorEntity, SensorEntity):
     """Sensor that summarizes recent Firewalla security alarms."""
 
-    def __init__(self, coordinator):
-        super().__init__(coordinator)
-        self._attr_name = "Firewalla Recent Alarms"
-        self._attr_unique_id = f"{DOMAIN}_recent_alarms_global"
-        self._attr_icon = "mdi:shield-alert"
-
     @property
     def native_value(self):
         """Return the most recent alarm message."""
-        # Get the list, default to empty list if None
-        alarms = self.coordinator.data.get("alarms", [])
+        # 1. Safely get the alarms list, defaulting to an empty list if None
+        alarms = self.coordinator.data.get("alarms", []) if self.coordinator.data else []
         
-        # Safely check if we have ANY items before accessing index 0
+        # 2. GUARD: If the list is empty (initial boot or no alarms), return a safe string
         if not alarms:
             return "No Alarms"
             
+        # 3. Now it is safe to access the first item
         latest = alarms[0]
-        # Return message, msg, or type safely
+        
+        # 4. Use .get() for keys to prevent further KeyErrors if the API format shifts
         return latest.get("message", latest.get("msg", latest.get("type", "Unknown Event")))
-
-    @property
-    def extra_state_attributes(self):
-        """Store the list of recent alarms in attributes."""
-        alarms = self.coordinator.data.get("alarms", [])
-        return {
-            "total_alarms": len(alarms),
-            "recent_events": alarms[:10] if alarms else []
-        }
