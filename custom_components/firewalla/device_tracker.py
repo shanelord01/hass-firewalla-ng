@@ -32,13 +32,20 @@ class FirewallaDeviceTracker(CoordinatorEntity, ScannerEntity):
         super().__init__(coordinator)
         self.device_id = device["id"]
         self._attr_name = device.get("name", f"Firewalla Device {self.device_id}")
-        self._attr_unique_id = f"{DOMAIN}_tracker_{self.device_id}"
         
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, self.device_id)},
-            name=self._attr_name,
-            manufacturer="Firewalla",
-        )
+        # Link to the main Firewalla Box device
+        if coordinator.data and "boxes" in coordinator.data:
+            box_id = coordinator.data["boxes"][0].get("id")
+            self._attr_device_info = DeviceInfo(
+                identifiers={(DOMAIN, f"box_{box_id}")},
+                name="Firewalla Box",
+                manufacturer="Firewalla",
+            )
+
+    @property
+    def unique_id(self) -> str:
+        """Return a unique ID to enable UI management."""
+        return f"{DOMAIN}_tracker_{self.device_id}"
 
     @property
     def source_type(self) -> SourceType:
@@ -48,28 +55,28 @@ class FirewallaDeviceTracker(CoordinatorEntity, ScannerEntity):
     @property
     def is_connected(self) -> bool:
         """Return true if the device is connected to the network."""
-        for device in self.coordinator.data.get("devices", []):
-            if device["id"] == self.device_id:
-                return device.get("online", False)
-        return False
+        device = self._get_device_data()
+        return device.get("online", False)
 
     @property
     def ip_address(self) -> str:
         """Return the primary IP address."""
-        for device in self.coordinator.data.get("devices", []):
-            if device["id"] == self.device_id:
-                return device.get("ip")
-        return None
+        device = self._get_device_data()
+        return device.get("ip")
 
     @property
     def mac_address(self) -> str:
         """Return the MAC address."""
-        for device in self.coordinator.data.get("devices", []):
-            if device["id"] == self.device_id:
-                return device.get("mac")
-        return None
+        device = self._get_device_data()
+        return device.get("mac")
+
+    def _get_device_data(self) -> dict:
+        """Helper to find this device in the latest coordinator data."""
+        devices = self.coordinator.data.get("devices", [])
+        return next((d for d in devices if d.get("id") == self.device_id), {})
 
     @callback
     def _handle_coordinator_update(self) -> None:
         """Update state on coordinator refresh."""
+        # This signals the UI to re-read the properties (is_connected, etc)
         self.async_write_ha_state()
