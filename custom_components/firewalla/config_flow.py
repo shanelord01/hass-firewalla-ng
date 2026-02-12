@@ -130,6 +130,10 @@ class FirewallaOptionsFlowHandler(config_entries.OptionsFlow):
                         CONF_ENABLE_ALARMS,
                         default=self.config_entry.options.get(CONF_ENABLE_ALARMS, False),
                     ): bool,
+                    vol.Optional(
+                    CONF_ENABLE_RULES,
+                    default=self.config_entry.options.get(CONF_ENABLE_RULES, False),
+                    ): bool,
                 }
             ),
         )
