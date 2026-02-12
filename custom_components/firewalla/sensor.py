@@ -34,10 +34,11 @@ async def async_setup_entry(
     coordinator = hass.data[DOMAIN][entry.entry_id].get(COORDINATOR)
 
     # 1. Retrieve the boolean flags (defaults to False if not found)
-    from .const import CONF_ENABLE_FLOWS, CONF_ENABLE_TRAFFIC
+    from .const import CONF_ENABLE_FLOWS, CONF_ENABLE_TRAFFIC, CONF_ENABLE_ALARMS
     
     enable_flows = entry.options.get(CONF_ENABLE_FLOWS, entry.data.get(CONF_ENABLE_FLOWS, False))
     enable_traffic = entry.options.get(CONF_ENABLE_TRAFFIC, entry.data.get(CONF_ENABLE_TRAFFIC, False))
+    enable_alarms = entry.options.get(CONF_ENABLE_ALARMS, entry.data.get(CONF_ENABLE_ALARMS, False))
     
     if not coordinator:
         _LOGGER.error("No coordinator found for entry %s", entry.entry_id)
@@ -93,13 +94,13 @@ async def async_setup_entry(
                         for flow in device_flows[target_id]:
                             entities.append(FirewallaFlowSensor(coordinator, flow, device))
     
-                # --- OPTIONAL: Alarm Sensors ---
-                if enable_alarms and coordinator.data and "alarms" in coordinator.data:
-                    _LOGGER.debug("Alarm sensors are enabled, processing data...")
-                    # Option A: One global sensor for all alarms
-                    entities.append(FirewallaRecentAlarmsSensor(coordinator))
+    # 4. OPTIONAL: Alarm Sensors ---
+    if enable_alarms and coordinator.data and "alarms" in coordinator.data:
+        _LOGGER.debug("Alarm sensors are enabled, processing data...")
+        # Option A: One global sensor for all alarms
+        entities.append(FirewallaRecentAlarmsSensor(coordinator))
     
-    # 4. Add Standalone Flows (flows not tied to a specific device)
+    # 5. Add Standalone Flows (flows not tied to a specific device)
     if enable_flows and coordinator.data and "flows" in coordinator.data:
         standalone_count = 0
         for flow in coordinator.data["flows"]:
