@@ -51,11 +51,11 @@ async def async_setup_entry(
     # 3. Add individual alarm sensors (OPTIONAL)
     # Note: Since you preferred the "Summary Sensor" in sensor.py, 
     # most users keep this disabled to save resources.
-    if enable_alarms and coordinator.data and "alarms" in coordinator.data:
-        _LOGGER.debug("Individual alarm binary sensors enabled")
-        for alarm in coordinator.data["alarms"]:
-            if isinstance(alarm, dict) and "id" in alarm:
-                entities.append(FirewallaAlarmSensor(coordinator, alarm))
+    # if enable_alarms and coordinator.data and "alarms" in coordinator.data:
+    #    _LOGGER.debug("Individual alarm binary sensors enabled")
+    #    for alarm in coordinator.data["alarms"]:
+    #        if isinstance(alarm, dict) and "id" in alarm:
+    #            entities.append(FirewallaAlarmSensor(coordinator, alarm))
     
     # 4. Add rule status sensors (OPTIONAL)
     if enable_rules and coordinator.data and "rules" in coordinator.data:
