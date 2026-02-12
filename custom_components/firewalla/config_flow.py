@@ -96,19 +96,18 @@ class FirewallaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Get the options flow for this handler."""
         return FirewallaOptionsFlowHandler(config_entry)
 
-
 class FirewallaOptionsFlowHandler(config_entries.OptionsFlow):
     """Handle Firewalla options."""
 
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        """Initialize options flow."""
-        super().__init__()
+    # DELETE THE __init__ BLOCK COMPLETELY
+    # HA will handle the config_entry assignment internally
 
     async def async_step_init(self, user_input=None):
         """Manage the options."""
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
+        # self.config_entry is automatically available here
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema(
@@ -119,7 +118,6 @@ class FirewallaOptionsFlowHandler(config_entries.OptionsFlow):
                             CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
                         ),
                     ): int,
-                    # Add your other toggles here so they show up in the Options UI!
                     vol.Optional(
                         CONF_ENABLE_FLOWS,
                         default=self.config_entry.options.get(CONF_ENABLE_FLOWS, False),
@@ -135,4 +133,3 @@ class FirewallaOptionsFlowHandler(config_entries.OptionsFlow):
                 }
             ),
         )
-
