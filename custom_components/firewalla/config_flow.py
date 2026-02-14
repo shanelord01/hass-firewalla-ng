@@ -18,7 +18,8 @@ from .const import (
     CONF_ENABLE_ALARMS,
     CONF_ENABLE_RULES,
     CONF_ENABLE_FLOWS,
-    CONF_ENABLE_TRAFFIC
+    CONF_ENABLE_TRAFFIC,
+    CONF_TRACK_DEVICES
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -86,6 +87,7 @@ class FirewallaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     vol.Optional(CONF_ENABLE_RULES, default=False): bool,
                     vol.Optional(CONF_ENABLE_FLOWS, default=False): bool,
                     vol.Optional(CONF_ENABLE_TRAFFIC, default=False): bool,
+                    vol.Optional(CONF_TRACK_DEVICES, default=False): bool,
                 }
             ),
             errors=errors,
@@ -133,6 +135,10 @@ class FirewallaOptionsFlowHandler(config_entries.OptionsFlow):
                     vol.Optional(
                     CONF_ENABLE_RULES,
                     default=self.config_entry.options.get(CONF_ENABLE_RULES, False),
+                    ): bool,
+                    vol.Optional(
+                    CONF_TRACK_DEVICES,
+                    default=self.config_entry.options.get(CONF_TRACK_DEVICES, False),
                     ): bool,
                 }
             ),
