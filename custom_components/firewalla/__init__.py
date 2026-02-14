@@ -2,16 +2,11 @@
 import logging
 from datetime import timedelta
 
-import voluptuous as vol
-
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
-import homeassistant.helpers.config_validation as cv
-from homeassistant.const import (
-    CONF_SCAN_INTERVAL,
-)
+from homeassistant.const import CONF_SCAN_INTERVAL
 from homeassistant.exceptions import ConfigEntryNotReady
 
 from .const import (
@@ -49,7 +44,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if not await client.authenticate():
         raise ConfigEntryNotReady("Failed to authenticate with Firewalla API")
     
-    # 1. Initialize storage with an empty cache
+    # Initialize storage with the persistent cache location
     hass.data[DOMAIN][entry.entry_id] = {
         API_CLIENT: client,
         "last_data": None
@@ -67,17 +62,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         enable_alarms = opts.get(CONF_ENABLE_ALARMS, data_src.get(CONF_ENABLE_ALARMS, False))
 
         try:
-            # Fetch fresh data
+            # 1. Fetch core data
             devices = await client.get_devices()
             boxes = await client.get_boxes()
+            
+            # 2. Conditional Fetching
             rules = await client.get_rules() if enable_rules else []
             alarms = await client.get_alarms() if enable_alarms else []
             flows = await client.get_flows() if enable_flows else []
 
-            # 2. Retrieve the cache from hass.data
+            # 3. Cache Merging Logic
             last = hass.data[DOMAIN][entry.entry_id].get("last_data")
-
-            # 3. Merge Logic
             if last:
                 if not boxes: boxes = last.get("boxes", [])
                 if not devices: devices = last.get("devices", [])
@@ -92,8 +87,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 "alarms": alarms,
                 "flows": flows
             }
-
-            # 4. Save to cache
+            
+            # Update the persistent cache
             hass.data[DOMAIN][entry.entry_id]["last_data"] = data
             return data
 
@@ -105,7 +100,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 return last
             raise UpdateFailed(f"Error communicating with API: {err}")
 
-    # Standard Coordinator Setup
     scan_interval = entry.options.get(
         CONF_SCAN_INTERVAL, 
         entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
@@ -121,7 +115,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     
     await coordinator.async_config_entry_first_refresh()
     
-    # Store coordinator
+    # Store coordinator and update the entry data
     hass.data[DOMAIN][entry.entry_id][COORDINATOR] = coordinator
     
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
