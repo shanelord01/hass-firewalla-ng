@@ -33,13 +33,20 @@ class FirewallaDeviceTracker(CoordinatorEntity, ScannerEntity):
         self.device_id = device["id"]
         self._attr_name = device.get("name", f"Firewalla Device {self.device_id}")
         
-        # Link to the specific Network Device, not the Firewalla Box itself
-        # This matches the identifiers used in sensor.py and binary_sensor.py
+        # Get the Box ID from the coordinator data
+        # We use a fallback 'firewalla_hub' if the boxes list is missing
+        box_id = "firewalla_hub"
+        if coordinator.data.get("boxes"):
+            box_id = coordinator.data["boxes"][0].get("id")
+
+        # This DeviceInfo block must be IDENTICAL for all entities 
+        # you want grouped into one single Device card.
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, self.device_id)},
-            name=device.get("name", f"Firewalla Device {self.device_id}"),
+            identifiers={(DOMAIN, f"box_{box_id}")},
+            name="Firewalla Box",
             manufacturer="Firewalla",
-            model="Network Device",
+            model="Firewalla Purple", # Optional: can pull from API
+            configuration_url="https://my.firewalla.com",
         )
 
     @property
@@ -72,10 +79,11 @@ class FirewallaDeviceTracker(CoordinatorEntity, ScannerEntity):
 
     def _get_device_data(self) -> dict:
         """Helper to find this device in the latest coordinator data."""
-        devices = self.coordinator.data.get("devices", []) if self.coordinator.data else []
+        devices = self.coordinator.data.get("devices", [])
         return next((d for d in devices if d.get("id") == self.device_id), {})
 
     @callback
     def _handle_coordinator_update(self) -> None:
         """Update state on coordinator refresh."""
+        # This signals the UI to re-read the properties (is_connected, etc)
         self.async_write_ha_state()
