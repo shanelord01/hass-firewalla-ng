@@ -166,3 +166,4 @@ async def async_update_options(hass: HomeAssistant, entry: ConfigEntry):
         
     # Reload the config entry to apply changes
     await hass.config_entries.async_reload(entry.entry_id)
+
