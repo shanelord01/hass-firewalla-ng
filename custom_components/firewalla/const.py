@@ -13,6 +13,7 @@ CONF_ENABLE_ALARMS: Final = "enable_alarms"
 CONF_ENABLE_RULES: Final = "enable_rules"
 CONF_ENABLE_FLOWS: Final = "enable_flows"
 CONF_ENABLE_TRAFFIC: Final = "enable_traffic"
+CONF_TRACK_DEVICES: Final = "track_devices"
 
 # Default values
 DEFAULT_SUBDOMAIN: Final = "api"
