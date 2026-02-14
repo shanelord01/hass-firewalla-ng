@@ -74,7 +74,7 @@ class FirewallaApiClient:
         url = f"{self._base_url}/{endpoint}"
         _LOGGER.debug("%s request to %s", method, url)
         
-        # Updated SSL context that ignores certificate errors
+        # force proper SSL certifcate validation
         try:
             async with async_timeout.timeout(DEFAULT_TIMEOUT):
                 # Make the request with SSL context
@@ -82,8 +82,7 @@ class FirewallaApiClient:
                     method, 
                     url, 
                     headers=self._headers, 
-                    params=params,
-                    ssl=False
+                    params=params
                 )
                 
                 # Check if we got HTML instead of JSON
