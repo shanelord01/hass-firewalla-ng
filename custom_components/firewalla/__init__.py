@@ -28,7 +28,6 @@ from .api import FirewallaApiClient
 
 _LOGGER = logging.getLogger(__name__)
 
-# Core setup remains the same
 async def async_setup(hass: HomeAssistant, config: dict):
     """Set up the Firewalla component."""
     hass.data.setdefault(DOMAIN, {})
@@ -50,10 +49,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if not await client.authenticate():
         raise ConfigEntryNotReady("Failed to authenticate with Firewalla API")
     
-    # 1. Initialize the entry-specific storage with an empty cache
+    # 1. Initialize storage with an empty cache
     hass.data[DOMAIN][entry.entry_id] = {
         API_CLIENT: client,
-        "last_data": None  # This is our new persistent cache location
+        "last_data": None
     }
 
     async def async_update_data():
@@ -78,7 +77,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             # 2. Retrieve the cache from hass.data
             last = hass.data[DOMAIN][entry.entry_id].get("last_data")
 
-            # 3. Merge Logic: If an endpoint fails (returns empty), use the cache
+            # 3. Merge Logic
             if last:
                 if not boxes: boxes = last.get("boxes", [])
                 if not devices: devices = last.get("devices", [])
@@ -94,13 +93,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 "flows": flows
             }
 
-            # 4. Save the merged result back to the cache
+            # 4. Save to cache
             hass.data[DOMAIN][entry.entry_id]["last_data"] = data
             return data
 
         except Exception as err:
             _LOGGER.error("Error communicating with API: %s", err)
-            # 5. Fail-safe: Return the entire cache if the whole request fails
             last = hass.data[DOMAIN][entry.entry_id].get("last_data")
             if last:
                 _LOGGER.info("Using cached data due to API error")
@@ -123,7 +121,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     
     await coordinator.async_config_entry_first_refresh()
     
-    # Add the coordinator to our storage
+    # Store coordinator
     hass.data[DOMAIN][entry.entry_id][COORDINATOR] = coordinator
     
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -131,24 +129,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     
     return True
 
-# Unload and Update Options methods remain the same...
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Unload a config entry."""
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-    
     if unload_ok:
         hass.data[DOMAIN].pop(entry.entry_id)
-    
     return unload_ok
 
 async def async_update_options(hass: HomeAssistant, entry: ConfigEntry):
     """Update options."""
-    # Update the scan interval in the coordinator
-    coordinator = hass.data[DOMAIN][entry.entry_id].get(COORDINATOR)
-    if coordinator:
-        scan_interval = entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
-        coordinator.update_interval = timedelta(seconds=scan_interval)
-        
-    # Reload the config entry to apply changes
     await hass.config_entries.async_reload(entry.entry_id)
-
