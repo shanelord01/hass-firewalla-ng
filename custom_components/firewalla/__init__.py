@@ -50,17 +50,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if not await client.authenticate():
         raise ConfigEntryNotReady("Failed to authenticate with Firewalla API")
     
-    scan_interval = entry.options.get(
-        CONF_SCAN_INTERVAL, 
-        entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
-    )
-    
-    # --- Optimized Coordinator Logic ---
+    # 1. Initialize the entry-specific storage with an empty cache
+    hass.data[DOMAIN][entry.entry_id] = {
+        API_CLIENT: client,
+        "last_data": None  # This is our new persistent cache location
+    }
+
     async def async_update_data():
         """Fetch data from API based on user preferences."""
         from .const import CONF_ENABLE_FLOWS, CONF_ENABLE_RULES, CONF_ENABLE_ALARMS
         
-        # Access entry directly (no 'self' needed here)
         opts = entry.options
         data_src = entry.data
         
@@ -69,35 +68,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         enable_alarms = opts.get(CONF_ENABLE_ALARMS, data_src.get(CONF_ENABLE_ALARMS, False))
 
         try:
-            # 1. Always fetch core data
+            # Fetch fresh data
             devices = await client.get_devices()
             boxes = await client.get_boxes()
-            
-            # 2. Conditional Fetching
-            rules = []
-            if enable_rules:
-                try:
-                    rules = await client.get_rules()
-                except Exception as e:
-                    _LOGGER.warning("Failed to get rules: %s", e)
+            rules = await client.get_rules() if enable_rules else []
+            alarms = await client.get_alarms() if enable_alarms else []
+            flows = await client.get_flows() if enable_flows else []
 
-            alarms = []
-            if enable_alarms:
-                try:
-                    alarms = await client.get_alarms()
-                except Exception as e:
-                    _LOGGER.warning("Failed to get alarms: %s", e)
+            # 2. Retrieve the cache from hass.data
+            last = hass.data[DOMAIN][entry.entry_id].get("last_data")
 
-            flows = []
-            if enable_flows:
-                try:
-                    flows = await client.get_flows()
-                except Exception as e:
-                    _LOGGER.warning("Failed to get flows: %s", e)
-
-            # 3. Cache Merging Logic
-            if hasattr(async_update_data, "last_data") and async_update_data.last_data:
-                last = async_update_data.last_data
+            # 3. Merge Logic: If an endpoint fails (returns empty), use the cache
+            if last:
                 if not boxes: boxes = last.get("boxes", [])
                 if not devices: devices = last.get("devices", [])
                 if not rules: rules = last.get("rules", [])
@@ -111,18 +93,25 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 "alarms": alarms,
                 "flows": flows
             }
-            async_update_data.last_data = data
+
+            # 4. Save the merged result back to the cache
+            hass.data[DOMAIN][entry.entry_id]["last_data"] = data
             return data
 
         except Exception as err:
             _LOGGER.error("Error communicating with API: %s", err)
-            if hasattr(async_update_data, "last_data") and async_update_data.last_data:
+            # 5. Fail-safe: Return the entire cache if the whole request fails
+            last = hass.data[DOMAIN][entry.entry_id].get("last_data")
+            if last:
                 _LOGGER.info("Using cached data due to API error")
-                return async_update_data.last_data
+                return last
             raise UpdateFailed(f"Error communicating with API: {err}")
 
-    # Initialize last_data
-    async_update_data.last_data = None
+    # Standard Coordinator Setup
+    scan_interval = entry.options.get(
+        CONF_SCAN_INTERVAL, 
+        entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+    )
     
     coordinator = DataUpdateCoordinator(
         hass,
@@ -134,13 +123,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     
     await coordinator.async_config_entry_first_refresh()
     
-    # Store data
-    hass.data[DOMAIN][entry.entry_id] = {
-        API_CLIENT: client,
-        COORDINATOR: coordinator,
-    }
+    # Add the coordinator to our storage
+    hass.data[DOMAIN][entry.entry_id][COORDINATOR] = coordinator
     
-    # Set up platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(async_update_options))
     
