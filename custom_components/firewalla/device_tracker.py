@@ -7,20 +7,15 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN # Removed COORDINATOR as it's no longer used here
+from .const import DOMAIN 
 
 _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback):
     """Set up Firewalla device trackers."""
-    # Using the modern runtime_data access
+    # Modern runtime_data access
     coordinator = entry.runtime_data.coordinator
     
-    # Optional: Only add entities if the user enabled tracking in options
-    # from .const import CONF_TRACK_DEVICES
-    # if not entry.options.get(CONF_TRACK_DEVICES, entry.data.get(CONF_TRACK_DEVICES, False)):
-    #     return
-
     if not coordinator or "devices" not in coordinator.data:
         return
 
@@ -41,7 +36,7 @@ class FirewallaDeviceTracker(CoordinatorEntity, ScannerEntity):
         self.device_id = device["id"]
         self._attr_name = device.get("name", f"Firewalla Device {self.device_id}")
         
-        # Consistent DeviceInfo for grouping
+        # Pull Box ID for grouping under the main Firewalla hardware
         box_id = "firewalla_hub"
         if coordinator.data.get("boxes"):
             box_id = coordinator.data["boxes"][0].get("id")
@@ -56,34 +51,34 @@ class FirewallaDeviceTracker(CoordinatorEntity, ScannerEntity):
 
     @property
     def entity_registry_enabled_default(self) -> bool:
-        """Force entities to be enabled by default on discovery."""
+        """Force trackers to be enabled by default on fresh install."""
         return True
     
     @property
     def unique_id(self) -> str:
-        """Return a unique ID to enable UI management."""
+        """Return a unique ID for the tracker."""
         return f"{DOMAIN}_tracker_{self.device_id}"
 
     @property
     def source_type(self) -> SourceType:
-        """Return the source type."""
+        """Identify as a router-based tracker."""
         return SourceType.ROUTER
 
     @property
     def is_connected(self) -> bool:
-        """Return true if the device is online."""
-        device = self._get_device_data()
-        return device.get("online", False)
+        """Return true if Firewalla reports the device online."""
+        return self._get_device_data().get("online", False)
 
     @property
     def ip_address(self) -> str:
-        """Return the primary IP address."""
+        """Return the current IP."""
         return self._get_device_data().get("ip")
 
     @property
     def mac_address(self) -> str:
         """Return the MAC address."""
-        return self._get_device_data().get("mac")
+        mac = self._get_device_data().get("mac", self.device_id)
+        return mac[4:] if mac.startswith("mac:") else mac
 
     def _get_device_data(self) -> dict:
         """Helper to find this device in the latest coordinator data."""
@@ -92,5 +87,5 @@ class FirewallaDeviceTracker(CoordinatorEntity, ScannerEntity):
 
     @callback
     def _handle_coordinator_update(self) -> None:
-        """Update state on coordinator refresh."""
+        """Signal HA to refresh the tracker state."""
         self.async_write_ha_state()
