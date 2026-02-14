@@ -82,8 +82,7 @@ class FirewallaApiClient:
                     method, 
                     url, 
                     headers=self._headers, 
-                    params=params,
-                    ssl=False
+                    params=params
                 )
                 
                 # Check if we got HTML instead of JSON
