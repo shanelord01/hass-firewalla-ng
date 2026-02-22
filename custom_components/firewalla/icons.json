@@ -1,0 +1,57 @@
+{
+  "entity": {
+    "binary_sensor": {
+      "box_online": {
+        "default": "mdi:router-network",
+        "state": {
+          "on": "mdi:router-network",
+          "off": "mdi:router-network-wireless-off"
+        }
+      },
+      "device_online": {
+        "default": "mdi:devices",
+        "state": {
+          "on": "mdi:devices",
+          "off": "mdi:devices"
+        }
+      },
+      "rule_active": {
+        "default": "mdi:shield-check",
+        "state": {
+          "on": "mdi:shield-check",
+          "off": "mdi:shield-off-outline"
+        }
+      },
+      "alarm_active": {
+        "default": "mdi:shield-alert-outline",
+        "state": {
+          "on": "mdi:shield-alert",
+          "off": "mdi:shield-check-outline"
+        }
+      }
+    },
+    "sensor": {
+      "ip_address": {
+        "default": "mdi:ip-network"
+      },
+      "mac_address": {
+        "default": "mdi:ethernet"
+      },
+      "network_name": {
+        "default": "mdi:lan"
+      },
+      "total_download": {
+        "default": "mdi:download-network"
+      },
+      "total_upload": {
+        "default": "mdi:upload-network"
+      },
+      "alarm_count": {
+        "default": "mdi:shield-alert"
+      },
+      "flow_transfer": {
+        "default": "mdi:swap-horizontal"
+      }
+    }
+  }
+}
