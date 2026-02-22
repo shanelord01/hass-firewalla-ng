@@ -1,132 +1,113 @@
 """The Firewalla integration."""
-from datetime import timedelta
+from __future__ import annotations
+
 import logging
+from dataclasses import dataclass
+from datetime import timedelta
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_SCAN_INTERVAL, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.helpers import device_registry as dr
 
 from .api import FirewallaApiClient
 from .const import (
     CONF_API_TOKEN,
+    CONF_SCAN_INTERVAL,
     CONF_SUBDOMAIN,
-    COORDINATOR,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_SUBDOMAIN,
     DOMAIN,
     PLATFORMS,
 )
+from .coordinator import FirewallaCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
-# Define a dataclass for cleaner data access (Optional but recommended)
-class FirewallaData:
-    """Class to hold Firewalla runtime data."""
-    def __init__(self, client, coordinator):
-        self.client = client
-        self.coordinator = coordinator
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+@dataclass
+class FirewallaData:
+    """Runtime data stored on the config entry."""
+
+    client: FirewallaApiClient
+    coordinator: FirewallaCoordinator
+
+
+type FirewallaConfigEntry = ConfigEntry[FirewallaData]
+
+
+async def async_setup_entry(hass: HomeAssistant, entry: FirewallaConfigEntry) -> bool:
     """Set up Firewalla from a config entry."""
     session = async_get_clientsession(hass)
-    
+
     client = FirewallaApiClient(
         session=session,
-        api_token=entry.data.get(CONF_API_TOKEN),
+        api_token=entry.data[CONF_API_TOKEN],
         subdomain=entry.data.get(CONF_SUBDOMAIN, DEFAULT_SUBDOMAIN),
     )
-    
+
     if not await client.authenticate():
-        raise ConfigEntryNotReady("Failed to authenticate with Firewalla API")
-    
-    # Use Options if set, otherwise fallback to Data
+        raise ConfigEntryNotReady("Authentication with Firewalla API failed")
+
     scan_interval = entry.options.get(
-        CONF_SCAN_INTERVAL, 
-        entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+        CONF_SCAN_INTERVAL,
+        entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
     )
 
-    async def async_update_data():
-        """Fetch data from API based on user preferences."""
-        # Use local references to keys to avoid circular imports
-        from .const import (
-            CONF_ENABLE_FLOWS, CONF_ENABLE_RULES, 
-            CONF_ENABLE_ALARMS, CONF_TRACK_DEVICES
-        )
-        
-        opts = entry.options
-        # Helper to check if a feature is enabled in options or data
-        def is_enabled(key): return opts.get(key, entry.data.get(key, False))
-
-        try:
-            # Core data is always fetched
-            devices = await client.get_devices()
-            boxes = await client.get_boxes()
-            
-            # Conditional fetching with error protection per-call
-            results = {"rules": [], "alarms": [], "flows": []}
-            
-            # Map calls to their config keys
-            calls = [
-                ("rules", is_enabled(CONF_ENABLE_RULES), client.get_rules),
-                ("alarms", is_enabled(CONF_ENABLE_ALARMS), client.get_alarms),
-                ("flows", is_enabled(CONF_ENABLE_FLOWS), client.get_flows),
-            ]
-
-            for key, enabled, func in calls:
-                if enabled:
-                    try:
-                        results[key] = await func()
-                    except Exception as e:
-                        _LOGGER.warning("Could not fetch %s: %s", key, e)
-
-            # Merge with previous data if current fetch failed for specific lists
-            last = getattr(async_update_data, "last_data", {}) or {}
-            
-            data = {
-                "boxes": boxes or last.get("boxes", []),
-                "devices": devices or last.get("devices", []),
-                "rules": results["rules"] or last.get("rules", []),
-                "alarms": results["alarms"] or last.get("alarms", []),
-                "flows": results["flows"] or last.get("flows", []),
-            }
-            
-            async_update_data.last_data = data
-            return data
-
-        except Exception as err:
-            if getattr(async_update_data, "last_data", None):
-                _LOGGER.error("API Error, using cached data: %s", err)
-                return async_update_data.last_data
-            raise UpdateFailed(f"Error communicating with API: {err}")
-
-    async_update_data.last_data = None
-    
-    coordinator = DataUpdateCoordinator(
-        hass,
-        _LOGGER,
-        name=f"{DOMAIN}_{entry.entry_id}",
-        update_method=async_update_data,
+    coordinator = FirewallaCoordinator(
+        hass=hass,
+        client=client,
+        entry=entry,
         update_interval=timedelta(seconds=scan_interval),
     )
 
     await coordinator.async_config_entry_first_refresh()
 
-    # MODERN WAY: Store in runtime_data
-    entry.runtime_data = FirewallaData(client, coordinator)
-    
+    entry.runtime_data = FirewallaData(client=client, coordinator=coordinator)
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-    entry.async_on_unload(entry.add_update_listener(async_update_options))
-    
+    entry.async_on_unload(entry.add_update_listener(_async_update_listener))
+
     return True
 
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+
+async def async_unload_entry(hass: HomeAssistant, entry: FirewallaConfigEntry) -> bool:
     """Unload a config entry."""
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
-async def async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Update options."""
-    # This triggers a reload of the integration, which calls async_setup_entry again
+
+async def _async_update_listener(
+    hass: HomeAssistant, entry: FirewallaConfigEntry
+) -> None:
+    """Reload when options change."""
     await hass.config_entries.async_reload(entry.entry_id)
+
+
+async def async_remove_config_entry_device(
+    hass: HomeAssistant,
+    config_entry: FirewallaConfigEntry,
+    device_entry: dr.DeviceEntry,
+) -> bool:
+    """Allow the user to manually remove a device from the UI.
+
+    Permits removal of any device no longer present in current coordinator data.
+    Devices still actively reported by the API cannot be removed.
+    """
+    coordinator = config_entry.runtime_data.coordinator
+    if coordinator.data is None:
+        return True
+
+    current_ids: set[str] = set()
+    for device in coordinator.data.get("devices", []):
+        if isinstance(device, dict) and "id" in device:
+            current_ids.add(device["id"])
+    for box in coordinator.data.get("boxes", []):
+        if isinstance(box, dict) and "id" in box:
+            current_ids.add(f"box_{box['id']}")
+
+    return not any(
+        identifier
+        for identifier in device_entry.identifiers
+        if identifier[0] == DOMAIN and identifier[1] in current_ids
+    )
