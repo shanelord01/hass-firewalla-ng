@@ -5,7 +5,7 @@ DOMAIN: Final = "firewalla"
 BRAND: Final = "Firewalla"
 PLATFORMS: Final = ["sensor", "binary_sensor", "device_tracker"]
 
-# Configuration constants
+# Configuration keys
 CONF_API_TOKEN: Final = "api_token"
 CONF_SUBDOMAIN: Final = "subdomain"
 CONF_SCAN_INTERVAL: Final = "scan_interval"
@@ -14,18 +14,22 @@ CONF_ENABLE_RULES: Final = "enable_rules"
 CONF_ENABLE_FLOWS: Final = "enable_flows"
 CONF_ENABLE_TRAFFIC: Final = "enable_traffic"
 CONF_TRACK_DEVICES: Final = "track_devices"
+CONF_STALE_DAYS: Final = "stale_days"
 
-# Default values
+# Defaults
 DEFAULT_SUBDOMAIN: Final = "api"
 DEFAULT_API_URL: Final = "https://api.firewalla.net/v2"
 DEFAULT_SCAN_INTERVAL: Final = 300  # 5 minutes
+DEFAULT_STALE_DAYS: Final = 30      # days before a device is considered stale
+DEFAULT_TIMEOUT: Final = 30
 
-# Data storage keys
+# Internal storage keys
 COORDINATOR: Final = "coordinator"
 API_CLIENT: Final = "client"
 
-# API constants
-DEFAULT_TIMEOUT: Final = 30
+# Staleness tracking
+STORAGE_KEY: Final = f"{DOMAIN}.device_seen"
+STORAGE_VERSION: Final = 1
 
 # Entity attributes
 ATTR_DEVICE_ID: Final = "device_id"
@@ -41,4 +45,3 @@ ATTR_DOWNLOAD: Final = "download"
 ATTR_BLOCKED_COUNT: Final = "blocked_count"
 ATTR_ALARM_ID: Final = "alarm_id"
 ATTR_RULE_ID: Final = "rule_id"
-
