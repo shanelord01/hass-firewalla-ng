@@ -1,11 +1,12 @@
-"""Binary sensor platform for Firewalla integration."""
+"""Binary sensor platform for Firewalla."""
+from __future__ import annotations
+
 import logging
-from datetime import datetime
-from typing import Any, Dict
+from typing import Any
 
 from homeassistant.components.binary_sensor import (
-    BinarySensorEntity,
     BinarySensorDeviceClass,
+    BinarySensorEntity,
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
@@ -14,200 +15,290 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
-    DOMAIN, 
-    ATTR_ALARM_ID, 
-    ATTR_DEVICE_ID, 
-    ATTR_NETWORK_ID,
+    ATTR_ALARM_ID,
     ATTR_RULE_ID,
     CONF_ENABLE_ALARMS,
-    CONF_ENABLE_RULES
+    CONF_ENABLE_RULES,
+    DOMAIN,
 )
+from .coordinator import FirewallaCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
+
 async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
-):
-    """Set up Firewalla binary sensors based on runtime data."""
-    # Modern Runtime Data access
-    coordinator = entry.runtime_data.coordinator
-    
-    # Retrieve flags from options or data fallback
-    enable_alarms = entry.options.get(CONF_ENABLE_ALARMS, entry.data.get(CONF_ENABLE_ALARMS, False))
-    enable_rules = entry.options.get(CONF_ENABLE_RULES, entry.data.get(CONF_ENABLE_RULES, False))
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    """Set up Firewalla binary sensors."""
+    coordinator: FirewallaCoordinator = entry.runtime_data.coordinator
 
-    if not coordinator or not coordinator.data:
+    if not coordinator.data:
         return
-    
-    entities = []
-    
-    # 1. Device Connectivity Sensors (Always Enabled)
-    if "devices" in coordinator.data:
-        for device in coordinator.data["devices"]:
-            if isinstance(device, dict) and "id" in device:
-                entities.append(FirewallaOnlineSensor(coordinator, device))
-    
-    # 2. Box Status Sensors (Always Enabled)
-    if "boxes" in coordinator.data:
-        for box in coordinator.data["boxes"]:
-            if isinstance(box, dict) and "id" in box:
-                entities.append(FirewallaBoxOnlineSensor(coordinator, box))
-    
-    # 3. Rule Status Sensors (Conditional)
-    if enable_rules and "rules" in coordinator.data:
-        for rule in coordinator.data["rules"]:
-            if isinstance(rule, dict) and "id" in rule:
-                entities.append(FirewallaRuleStatusSensor(coordinator, rule))
 
-    # 4. Individual Alarm Sensors (Conditional)
-    if enable_alarms and "alarms" in coordinator.data:
-        for alarm in coordinator.data["alarms"]:
+    def _opt(key: str) -> bool:
+        return entry.options.get(key, entry.data.get(key, False))
+
+    entities: list[BinarySensorEntity] = []
+
+    # Box connectivity (always enabled)
+    for box in coordinator.data.get("boxes", []):
+        if isinstance(box, dict) and "id" in box:
+            entities.append(FirewallaBoxOnlineSensor(coordinator, box))
+
+    # Device connectivity (always enabled)
+    for device in coordinator.data.get("devices", []):
+        if isinstance(device, dict) and "id" in device:
+            entities.append(FirewallaDeviceOnlineSensor(coordinator, device))
+
+    # Rules (optional)
+    if _opt(CONF_ENABLE_RULES):
+        for rule in coordinator.data.get("rules", []):
+            if isinstance(rule, dict) and "id" in rule:
+                entities.append(FirewallaRuleActiveSensor(coordinator, rule))
+
+    # Individual alarm sensors (optional)
+    if _opt(CONF_ENABLE_ALARMS):
+        for alarm in coordinator.data.get("alarms", []):
             if isinstance(alarm, dict) and "id" in alarm:
                 entities.append(FirewallaAlarmSensor(coordinator, alarm))
-    
+
     async_add_entities(entities)
 
 
-class FirewallaBaseBinarySensor(CoordinatorEntity, BinarySensorEntity):
-    """Common base for all Firewalla binary sensors."""
-    
+# ---------------------------------------------------------------------------
+# Base
+# ---------------------------------------------------------------------------
+
+
+class _FirewallaBinarySensor(CoordinatorEntity[FirewallaCoordinator], BinarySensorEntity):
+    """Shared base for all Firewalla binary sensors."""
+
+    _attr_has_entity_name = True
+
     @property
     def entity_registry_enabled_default(self) -> bool:
-        """Force entities to be enabled by default."""
         return True
 
 
-class FirewallaOnlineSensor(FirewallaBaseBinarySensor):
-    """Binary sensor for Firewalla device online status."""
+# ---------------------------------------------------------------------------
+# Box online
+# ---------------------------------------------------------------------------
 
-    def __init__(self, coordinator, device):
+
+class FirewallaBoxOnlineSensor(_FirewallaBinarySensor):
+    """Connectivity sensor for a Firewalla box."""
+
+    _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
+    _attr_translation_key = "box_online"
+
+    def __init__(
+        self, coordinator: FirewallaCoordinator, box: dict[str, Any]
+    ) -> None:
         super().__init__(coordinator)
-        self.device_id = device["id"]
-        self._attr_name = f"{device.get('name', 'Unknown')} Online"
-        self._attr_unique_id = f"{DOMAIN}_online_{self.device_id}"
-        self._attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
-        
-        # Group with the specific device
+        self._box_id = box["id"]
+        self._attr_unique_id = f"{DOMAIN}_box_online_{self._box_id}"
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, self.device_id)},
-            name=device.get("name", f"Firewalla Device {self.device_id}"),
+            identifiers={(DOMAIN, f"box_{self._box_id}")},
+            name=f"Firewalla {box.get('name', self._box_id)}",
             manufacturer="Firewalla",
+            model=box.get("model", "Firewalla Box"),
+            sw_version=box.get("version"),
+            configuration_url=(
+                f"https://{box.get('publicIP')}" if box.get("publicIP") else None
+            ),
         )
-        self._update_attributes(device)
+        self._update_state(box)
+
+    def _get_box(self) -> dict[str, Any] | None:
+        return next(
+            (
+                b
+                for b in self.coordinator.data.get("boxes", [])
+                if b.get("id") == self._box_id
+            ),
+            None,
+        )
 
     @callback
     def _handle_coordinator_update(self) -> None:
-        """Update state from coordinator data."""
-        device = next((d for d in self.coordinator.data.get("devices", []) 
-                      if d.get("id") == self.device_id), None)
-        if device:
-            self._update_attributes(device)
+        box = self._get_box()
+        if box:
+            self._update_state(box)
             self.async_write_ha_state()
 
-    def _update_attributes(self, device):
+    def _update_state(self, box: dict[str, Any]) -> None:
+        self._attr_is_on = box.get("online", False)
+        self._attr_extra_state_attributes = {
+            "gid": box.get("gid"),
+            "version": box.get("version"),
+            "mode": box.get("mode"),
+            "public_ip": box.get("publicIP"),
+            "location": box.get("location"),
+            "last_seen": box.get("lastSeen"),
+            "device_count": box.get("deviceCount"),
+            "alarm_count": box.get("alarmCount"),
+            "rule_count": box.get("ruleCount"),
+        }
+
+
+# ---------------------------------------------------------------------------
+# Device online
+# ---------------------------------------------------------------------------
+
+
+class FirewallaDeviceOnlineSensor(_FirewallaBinarySensor):
+    """Connectivity sensor for a network device seen by Firewalla."""
+
+    _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
+    _attr_translation_key = "device_online"
+
+    def __init__(
+        self, coordinator: FirewallaCoordinator, device: dict[str, Any]
+    ) -> None:
+        super().__init__(coordinator)
+        self._device_id = device["id"]
+        self._attr_unique_id = f"{DOMAIN}_online_{self._device_id}"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, self._device_id)},
+            name=device.get("name", f"Device {self._device_id}"),
+            manufacturer=device.get("vendor") or "Unknown",
+            connections=(
+                {("mac", device["mac"])} if device.get("mac") else set()
+            ),
+        )
+        self._update_state(device)
+
+    def _get_device(self) -> dict[str, Any] | None:
+        return next(
+            (
+                d
+                for d in self.coordinator.data.get("devices", [])
+                if d.get("id") == self._device_id
+            ),
+            None,
+        )
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        device = self._get_device()
+        if device:
+            self._update_state(device)
+            self.async_write_ha_state()
+
+    def _update_state(self, device: dict[str, Any]) -> None:
         self._attr_is_on = device.get("online", False)
         self._attr_extra_state_attributes = {
             "ip_address": device.get("ip"),
             "mac_address": device.get("mac"),
             "network": device.get("network", {}).get("name"),
+            "last_active": device.get("lastActiveTimestamp"),
         }
 
 
-class FirewallaBoxOnlineSensor(FirewallaBaseBinarySensor):
-    """Binary sensor for Firewalla box online status."""
+# ---------------------------------------------------------------------------
+# Rule active
+# ---------------------------------------------------------------------------
 
-    def __init__(self, coordinator, box):
+
+class FirewallaRuleActiveSensor(_FirewallaBinarySensor):
+    """Indicates whether a Firewalla firewall rule is active."""
+
+    _attr_device_class = BinarySensorDeviceClass.RUNNING
+    _attr_translation_key = "rule_active"
+
+    def __init__(
+        self, coordinator: FirewallaCoordinator, rule: dict[str, Any]
+    ) -> None:
         super().__init__(coordinator)
-        self.box_id = box["id"]
-        self._attr_name = f"Firewalla Box {box.get('name', 'Unknown')} Online"
-        self._attr_unique_id = f"{DOMAIN}_box_online_{self.box_id}"
-        self._attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
-        
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, f"box_{self.box_id}")},
-            name=f"Firewalla Box {box.get('name', self.box_id)}",
-            manufacturer="Firewalla",
-            model=box.get("model", "Firewalla Box"),
-        )
-        self._update_attributes(box)
+        self._rule_id = rule["id"]
+        self._attr_unique_id = f"{DOMAIN}_rule_{self._rule_id}"
 
-    @callback
-    def _handle_coordinator_update(self) -> None:
-        box = next((b for b in self.coordinator.data.get("boxes", []) 
-                   if b.get("id") == self.box_id), None)
-        if box:
-            self._update_attributes(box)
-            self.async_write_ha_state()
-
-    def _update_attributes(self, box):
-        self._attr_is_on = box.get("online", False)
-        self._attr_extra_state_attributes = {
-            "version": box.get("version"),
-            "last_seen": box.get("lastActiveTimestamp"),
-        }
-
-
-class FirewallaRuleStatusSensor(FirewallaBaseBinarySensor):
-    """Binary sensor for Firewalla rule status."""
-
-    def __init__(self, coordinator, rule):
-        super().__init__(coordinator)
-        self.rule_id = rule["id"]
-        self._attr_name = f"Rule: {rule.get('action', 'Unknown')} {rule.get('direction', '')}"
-        self._attr_unique_id = f"{DOMAIN}_rule_{self.rule_id}"
-        self._attr_device_class = BinarySensorDeviceClass.RUNNING
-        
-        # Link to the Box device
-        box_id = rule.get("boxId") or coordinator.data.get("boxes", [{}])[0].get("id")
+        box_id = rule.get("boxId") or self._first_box_id(coordinator)
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"box_{box_id}")},
         )
-        self._update_attributes(rule)
+        self._update_state(rule)
+
+    @staticmethod
+    def _first_box_id(coordinator: FirewallaCoordinator) -> str:
+        boxes = coordinator.data.get("boxes", [{}])
+        return boxes[0].get("id", "unknown") if boxes else "unknown"
 
     @callback
     def _handle_coordinator_update(self) -> None:
-        rule = next((r for r in self.coordinator.data.get("rules", []) 
-                    if r.get("id") == self.rule_id), None)
+        rule = next(
+            (
+                r
+                for r in self.coordinator.data.get("rules", [])
+                if r.get("id") == self._rule_id
+            ),
+            None,
+        )
         if rule:
-            self._update_attributes(rule)
+            self._update_state(rule)
             self.async_write_ha_state()
 
-    def _update_attributes(self, rule):
+    def _update_state(self, rule: dict[str, Any]) -> None:
         self._attr_is_on = rule.get("status") == "active"
         self._attr_extra_state_attributes = {
-            ATTR_RULE_ID: self.rule_id,
+            ATTR_RULE_ID: self._rule_id,
+            "action": rule.get("action"),
+            "direction": rule.get("direction"),
             "notes": rule.get("notes"),
         }
 
 
-class FirewallaAlarmSensor(FirewallaBaseBinarySensor):
-    """Binary sensor for Firewalla individual alarms."""
+# ---------------------------------------------------------------------------
+# Alarm active
+# ---------------------------------------------------------------------------
 
-    def __init__(self, coordinator, alarm):
+
+class FirewallaAlarmSensor(_FirewallaBinarySensor):
+    """Binary sensor representing a single Firewalla alarm."""
+
+    _attr_device_class = BinarySensorDeviceClass.PROBLEM
+    _attr_translation_key = "alarm_active"
+
+    def __init__(
+        self, coordinator: FirewallaCoordinator, alarm: dict[str, Any]
+    ) -> None:
         super().__init__(coordinator)
-        self.alarm_id = alarm["id"]
-        self._attr_name = f"Firewalla Alarm: {alarm.get('message', 'Alert')[:30]}"
-        self._attr_unique_id = f"{DOMAIN}_alarm_{self.alarm_id}"
-        self._attr_device_class = BinarySensorDeviceClass.PROBLEM
-        
-        box_id = alarm.get("boxId") or coordinator.data.get("boxes", [{}])[0].get("id")
+        self._alarm_id = alarm["id"]
+        self._attr_unique_id = f"{DOMAIN}_alarm_{self._alarm_id}"
+
+        box_id = alarm.get("boxId") or self._first_box_id(coordinator)
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"box_{box_id}")},
         )
-        self._update_attributes(alarm)
+        self._update_state(alarm)
+
+    @staticmethod
+    def _first_box_id(coordinator: FirewallaCoordinator) -> str:
+        boxes = coordinator.data.get("boxes", [{}])
+        return boxes[0].get("id", "unknown") if boxes else "unknown"
 
     @callback
     def _handle_coordinator_update(self) -> None:
-        alarm = next((a for a in self.coordinator.data.get("alarms", []) 
-                     if a.get("id") == self.alarm_id), None)
+        alarm = next(
+            (
+                a
+                for a in self.coordinator.data.get("alarms", [])
+                if a.get("id") == self._alarm_id
+            ),
+            None,
+        )
         if alarm:
-            self._update_attributes(alarm)
+            self._update_state(alarm)
             self.async_write_ha_state()
 
-    def _update_attributes(self, alarm):
-        # Active if status is not 2 (cleared)
+    def _update_state(self, alarm: dict[str, Any]) -> None:
+        # status==2 means cleared in Firewalla API
         self._attr_is_on = alarm.get("status", 1) != 2
         self._attr_extra_state_attributes = {
-            ATTR_ALARM_ID: self.alarm_id,
+            ATTR_ALARM_ID: self._alarm_id,
             "message": alarm.get("message"),
+            "type": alarm.get("type"),
+            "timestamp": alarm.get("ts"),
         }
