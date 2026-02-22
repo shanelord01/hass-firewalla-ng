@@ -4,6 +4,6 @@
   "type": "integration",
   "iot_class": "cloud_polling",
   "render_readme": true,
-  "documentation": "https://github.com/DaneManes/hass-firewalla",
-  "homeassistant": "2023.1.0"
+  "documentation": "https://github.com/shanelord01/hass-firewalla-ng",
+  "homeassistant": "2024.1.0"
 }
