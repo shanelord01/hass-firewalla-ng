@@ -1,145 +1,152 @@
 """Config flow for Firewalla integration."""
+from __future__ import annotations
+
 import logging
+from typing import Any
+
 import voluptuous as vol
 
 from homeassistant import config_entries
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.helpers.selector import BooleanSelector
-import homeassistant.helpers.config_validation as cv
 from homeassistant.const import CONF_SCAN_INTERVAL
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import FirewallaApiClient
 from .const import (
-    DOMAIN, 
-    CONF_API_TOKEN, 
-    CONF_SUBDOMAIN, 
-    DEFAULT_SUBDOMAIN,
-    DEFAULT_SCAN_INTERVAL,
+    CONF_API_TOKEN,
     CONF_ENABLE_ALARMS,
-    CONF_ENABLE_RULES,
     CONF_ENABLE_FLOWS,
+    CONF_ENABLE_RULES,
     CONF_ENABLE_TRAFFIC,
-    CONF_TRACK_DEVICES
+    CONF_STALE_DAYS,
+    CONF_SUBDOMAIN,
+    CONF_TRACK_DEVICES,
+    DEFAULT_SCAN_INTERVAL,
+    DEFAULT_STALE_DAYS,
+    DEFAULT_SUBDOMAIN,
+    DOMAIN,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
+
 class FirewallaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Handle a config flow for Firewalla."""
+    """Handle the initial setup config flow for Firewalla."""
 
     VERSION = 1
-    CONNECTION_CLASS = config_entries.CONN_CLASS_CLOUD_POLL
 
-    async def async_step_user(self, user_input=None):
-        """Handle the initial step."""
-        errors = {}
+    async def async_step_user(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Handle the initial step - credentials and feature toggles."""
+        errors: dict[str, str] = {}
 
         if user_input is not None:
             session = async_get_clientsession(self.hass)
-            
-            # Create API client with the provided credentials
-            api_client = FirewallaApiClient(
+            client = FirewallaApiClient(
                 session=session,
-                api_token=user_input.get(CONF_API_TOKEN),
-                subdomain=user_input.get(CONF_SUBDOMAIN),
+                api_token=user_input[CONF_API_TOKEN],
+                subdomain=user_input[CONF_SUBDOMAIN],
             )
-
             try:
-                # Test the API connection
-                auth_success = await api_client.async_check_credentials()
-                
-                if auth_success:
-                    # Use a combination of subdomain and token as the unique ID
-                    await self.async_set_unique_id(f"{user_input[CONF_SUBDOMAIN]}_{user_input.get(CONF_API_TOKEN, '')}")
+                ok = await client.async_check_credentials()
+            except Exception:  # noqa: BLE001
+                _LOGGER.exception("Error during Firewalla credential check")
+                errors["base"] = "cannot_connect"
+            else:
+                if ok:
+                    unique_id = (
+                        f"{user_input[CONF_SUBDOMAIN]}_{user_input[CONF_API_TOKEN][-8:]}"
+                    )
+                    await self.async_set_unique_id(unique_id)
                     self._abort_if_unique_id_configured()
-                    
                     return self.async_create_entry(
                         title=f"Firewalla ({user_input[CONF_SUBDOMAIN]})",
                         data=user_input,
                     )
                 else:
-                    errors["base"] = "auth"
-            except Exception as ex:
-                _LOGGER.error("Error during authentication: %s", ex)
-                errors["base"] = "auth"
+                    errors["base"] = "invalid_auth"
 
-        # Set default values
-        default_values = {
-            CONF_SUBDOMAIN: DEFAULT_SUBDOMAIN,
-            CONF_SCAN_INTERVAL: DEFAULT_SCAN_INTERVAL,
-        }
-        
-        # If we have user input, use those values as defaults
-        if user_input is not None:
-            for key in default_values:
-                if key in user_input:
-                    default_values[key] = user_input[key]
+        schema = vol.Schema(
+            {
+                vol.Required(
+                    CONF_SUBDOMAIN,
+                    default=(user_input or {}).get(CONF_SUBDOMAIN, DEFAULT_SUBDOMAIN),
+                ): str,
+                vol.Required(CONF_API_TOKEN): str,
+                vol.Optional(
+                    CONF_SCAN_INTERVAL,
+                    default=(user_input or {}).get(
+                        CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
+                    ),
+                ): vol.All(int, vol.Range(min=30, max=86400)),
+                vol.Optional(CONF_ENABLE_ALARMS, default=False): bool,
+                vol.Optional(CONF_ENABLE_RULES, default=False): bool,
+                vol.Optional(CONF_ENABLE_FLOWS, default=False): bool,
+                vol.Optional(CONF_ENABLE_TRAFFIC, default=False): bool,
+                vol.Optional(CONF_TRACK_DEVICES, default=True): bool,
+            }
+        )
 
         return self.async_show_form(
             step_id="user",
-            data_schema=vol.Schema(
-                {
-                    vol.Required(CONF_SUBDOMAIN, default=default_values[CONF_SUBDOMAIN]): str,
-                    vol.Required(CONF_API_TOKEN): str,
-                    vol.Required(CONF_SCAN_INTERVAL, default=default_values[CONF_SCAN_INTERVAL]): int,
-                    # Adding the toggles:
-                    vol.Optional(CONF_ENABLE_ALARMS, default=False): bool,
-                    vol.Optional(CONF_ENABLE_RULES, default=False): bool,
-                    vol.Optional(CONF_ENABLE_FLOWS, default=False): bool,
-                    vol.Optional(CONF_ENABLE_TRAFFIC, default=False): bool,
-                    vol.Optional(CONF_TRACK_DEVICES, default=False): bool,
-                }
-            ),
+            data_schema=schema,
             errors=errors,
         )
 
     @staticmethod
-    def async_get_options_flow(config_entry):
-        """Get the options flow for this handler."""
-        return FirewallaOptionsFlowHandler()
+    def async_get_options_flow(
+        config_entry: config_entries.ConfigEntry,
+    ) -> FirewallaOptionsFlow:
+        """Return the options flow handler."""
+        return FirewallaOptionsFlow()
 
-class FirewallaOptionsFlowHandler(config_entries.OptionsFlow):
-    """Handle Firewalla options."""
 
-    # DELETE THE __init__ BLOCK COMPLETELY
-    # HA will handle the config_entry assignment internally
+class FirewallaOptionsFlow(config_entries.OptionsFlow):
+    """Handle Firewalla options - modifying settings after initial setup."""
 
-    async def async_step_init(self, user_input=None):
-        """Manage the options."""
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Display and handle the options form."""
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
-        # self.config_entry is automatically available here
-        return self.async_show_form(
-            step_id="init",
-            data_schema=vol.Schema(
-                {
-                    vol.Required(
-                        CONF_SCAN_INTERVAL,
-                        default=self.config_entry.options.get(
-                            CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
-                        ),
-                    ): int,
-                    vol.Optional(
-                        CONF_ENABLE_FLOWS,
-                        default=self.config_entry.options.get(CONF_ENABLE_FLOWS, False),
-                    ): bool,
-                    vol.Optional(
-                        CONF_ENABLE_TRAFFIC,
-                        default=self.config_entry.options.get(CONF_ENABLE_TRAFFIC, False),
-                    ): bool,
-                    vol.Optional(
-                        CONF_ENABLE_ALARMS,
-                        default=self.config_entry.options.get(CONF_ENABLE_ALARMS, False),
-                    ): bool,
-                    vol.Optional(
+        def _current(key: str, default: Any) -> Any:
+            return self.config_entry.options.get(
+                key, self.config_entry.data.get(key, default)
+            )
+
+        schema = vol.Schema(
+            {
+                vol.Optional(
+                    CONF_SCAN_INTERVAL,
+                    default=_current(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
+                ): vol.All(int, vol.Range(min=30, max=86400)),
+                vol.Optional(
+                    CONF_ENABLE_ALARMS,
+                    default=_current(CONF_ENABLE_ALARMS, False),
+                ): bool,
+                vol.Optional(
                     CONF_ENABLE_RULES,
-                    default=self.config_entry.options.get(CONF_ENABLE_RULES, False),
-                    ): bool,
-                    vol.Optional(
+                    default=_current(CONF_ENABLE_RULES, False),
+                ): bool,
+                vol.Optional(
+                    CONF_ENABLE_FLOWS,
+                    default=_current(CONF_ENABLE_FLOWS, False),
+                ): bool,
+                vol.Optional(
+                    CONF_ENABLE_TRAFFIC,
+                    default=_current(CONF_ENABLE_TRAFFIC, False),
+                ): bool,
+                vol.Optional(
                     CONF_TRACK_DEVICES,
-                    default=self.config_entry.options.get(CONF_TRACK_DEVICES, False),
-                    ): bool,
-                }
-            ),
+                    default=_current(CONF_TRACK_DEVICES, True),
+                ): bool,
+                vol.Optional(
+                    CONF_STALE_DAYS,
+                    default=_current(CONF_STALE_DAYS, DEFAULT_STALE_DAYS),
+                ): vol.All(int, vol.Range(min=1, max=365)),
+            }
         )
+
+        return self.async_show_form(step_id="init", data_schema=schema)
