@@ -106,19 +106,6 @@ logger:
 - Rewritten for HA 2024.1+: [shanelord01/hass-firewalla-ng](https://github.com/shanelord01/hass-firewalla-ng)
 ```
 
----
-
-Commit message: `docs: update README.md`
-
----
-
-That's all 14 files done! Now to create the release:
-
-1. Go to your repo → **Releases** → **Draft a new release**
-2. Click **Choose a tag** → type `v2.0.0` → click **Create new tag**
-3. Set title to `v2.0.0`
-4. Paste these release notes:
-```
 ## v2.0.0 - Full rewrite for Home Assistant 2024.1+
 
 ### Breaking Changes
