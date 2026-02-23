@@ -106,7 +106,7 @@ logger:
 - Rewritten for HA 2024.1+: [shanelord01/hass-firewalla-ng](https://github.com/shanelord01/hass-firewalla-ng)
 ```
 
-## v2.0.2 - Full rewrite for Home Assistant 2024.1+
+## v2.0.3 - Full rewrite for Home Assistant 2024.1+
 
 ### What's New v2.0.3
 - Update HACS Description
