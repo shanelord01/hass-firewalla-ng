@@ -106,13 +106,16 @@ logger:
 - Rewritten for HA 2024.1+: [shanelord01/hass-firewalla-ng](https://github.com/shanelord01/hass-firewalla-ng)
 ```
 
-## v2.0.0 - Full rewrite for Home Assistant 2024.1+
+## v2.0.1 - Full rewrite for Home Assistant 2024.1+
+
+### What's New v2.0.1
+- Show "Firewalla" as the manufacturer rather than "Unknown" for devices
 
 ### Breaking Changes
 - Requires Home Assistant 2024.1 or later
 - Remove and re-add the integration after upgrading
 
-### What's New
+### What's New v2.0.0
 - Dedicated `FirewallaCoordinator` class with proper stale device cleanup
 - Automatic removal of devices absent for configurable number of days (default 30)
 - Devices used in automations are never removed automatically
