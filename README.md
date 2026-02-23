@@ -108,7 +108,8 @@ logger:
 
 ## v2.0.2 - Full rewrite for Home Assistant 2024.1+
 
-### What's New v2.0.2
+### What's New v2.0.3
+- Update HACS Description
 - Updated logos as per Home Assistant Brand Standards
 - Show "Firewalla" as the manufacturer rather than "Unknown" for devices
 
