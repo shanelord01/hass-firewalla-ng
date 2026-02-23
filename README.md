@@ -77,17 +77,6 @@ are never removed automatically. HA enforces this via the standard
 
 ---
 
-## Branding / Logo
-
-For the Firewalla logo to appear in the HA integrations list, place these files
-directly in `custom_components/firewalla/`:
-```
-icon.png   — 128×128 px square PNG
-logo.png   — ~250×100 px PNG
-```
-
----
-
 ## Debug Logging
 ```yaml
 # configuration.yaml
