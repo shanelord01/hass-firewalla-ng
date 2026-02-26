@@ -89,25 +89,25 @@ async def async_remove_config_entry_device(
     config_entry: FirewallaConfigEntry,
     device_entry: dr.DeviceEntry,
 ) -> bool:
-    """Allow the user to manually remove a device from the UI.
+    """Allow manual deletion of any device that is not currently online.
 
-    Permits removal of any device no longer present in current coordinator data.
-    Devices still actively reported by the API cannot be removed.
+    Devices actively reporting as online via the API cannot be removed.
+    Offline or stale devices can be cleaned up manually by the user.
     """
     coordinator = config_entry.runtime_data.coordinator
     if coordinator.data is None:
         return True
 
-    current_ids: set[str] = set()
+    online_ids: set[str] = set()
     for device in coordinator.data.get("devices", []):
-        if isinstance(device, dict) and "id" in device:
-            current_ids.add(device["id"])
+        if isinstance(device, dict) and "id" in device and device.get("online", False):
+            online_ids.add(device["id"])
     for box in coordinator.data.get("boxes", []):
-        if isinstance(box, dict) and "id" in box:
-            current_ids.add(f"box_{box['id']}")
+        if isinstance(box, dict) and "id" in box and box.get("online", False):
+            online_ids.add(f"box_{box['id']}")
 
     return not any(
         identifier
         for identifier in device_entry.identifiers
-        if identifier[0] == DOMAIN and identifier[1] in current_ids
+        if identifier[0] == DOMAIN and identifier[1] in online_ids
     )
