@@ -95,11 +95,15 @@ logger:
 - Rewritten for HA 2024.1+: [shanelord01/hass-firewalla-ng](https://github.com/shanelord01/hass-firewalla-ng)
 ```
 
-## v2.0.3 - Full rewrite for Home Assistant 2024.1+
+## v2.0.4 - Full rewrite for Home Assistant 2024.1+
+
+### What's New v2.0.4
+- Fix manual device deletion — offline devices can now be removed via the UI
+- Fix entity display names — resolved random and Unavailable labels by correcting translations file path
 
 ### What's New v2.0.3
 - Update HACS Description
-- Updated logos as per Home Assistant Brand Standards
+- Updated logos as per Home Assistant Brand Standards to deploy in HA 2026.3
 - Show "Firewalla" as the manufacturer rather than "Unknown" for devices
 
 ### Breaking Changes
