@@ -95,7 +95,7 @@ logger:
 - Rewritten for HA 2024.1+: [shanelord01/hass-firewalla-ng](https://github.com/shanelord01/hass-firewalla-ng)
 ```
 
-## v2.0.4 - Full rewrite for Home Assistant 2024.1+
+## v2.0.x - Full rewrite for Home Assistant 2024.1+
 
 ### What's New v2.0.4
 - Fix manual device deletion — offline devices can now be removed via the UI
