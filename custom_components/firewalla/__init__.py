@@ -10,10 +10,14 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 
 from .api import FirewallaApiClient
 from .const import (
     CONF_API_TOKEN,
+    CONF_ENABLE_ALARMS,
+    CONF_ENABLE_FLOWS,
+    CONF_ENABLE_RULES,
     CONF_SCAN_INTERVAL,
     CONF_SUBDOMAIN,
     DEFAULT_SCAN_INTERVAL,
@@ -66,6 +70,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: FirewallaConfigEntry) ->
 
     entry.runtime_data = FirewallaData(client=client, coordinator=coordinator)
 
+    # Remove entity registry entries for any features that have been disabled.
+    # This prevents previously-created entities from lingering as "Unavailable"
+    # when the user toggles off Alarms, Rules, or Flows in the options flow.
+    await _async_cleanup_disabled_entities(hass, entry)
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
 
@@ -82,6 +91,53 @@ async def _async_update_listener(
 ) -> None:
     """Reload when options change."""
     await hass.config_entries.async_reload(entry.entry_id)
+
+
+async def _async_cleanup_disabled_entities(
+    hass: HomeAssistant, entry: ConfigEntry
+) -> None:
+    """Remove entity registry entries for features that have been disabled.
+
+    When a user disables Alarms, Rules, or Flows via the options flow, the
+    platform setup functions simply skip creating those entities — but any
+    entries already registered from a previous run remain in the entity
+    registry and show as Unavailable. This function removes them cleanly.
+    """
+
+    def _opt(key: str) -> bool:
+        return entry.options.get(key, entry.data.get(key, False))
+
+    # Map each optional feature flag to the unique_id prefixes it generates.
+    # These must match the unique_id patterns set in binary_sensor.py and sensor.py.
+    feature_prefixes: dict[str, list[str]] = {
+        CONF_ENABLE_ALARMS: [
+            f"{DOMAIN}_alarm_",        # FirewallaAlarmSensor (binary_sensor)
+            f"{DOMAIN}_alarm_count_",  # FirewallaAlarmCountSensor (sensor)
+        ],
+        CONF_ENABLE_RULES: [
+            f"{DOMAIN}_rule_",         # FirewallaRuleActiveSensor (binary_sensor)
+        ],
+        CONF_ENABLE_FLOWS: [
+            f"{DOMAIN}_flow_",         # FirewallaFlowSensor (sensor)
+        ],
+    }
+
+    ent_registry = er.async_get(hass)
+    all_entries = er.async_entries_for_config_entry(ent_registry, entry.entry_id)
+
+    for feature_key, prefixes in feature_prefixes.items():
+        if _opt(feature_key):
+            # Feature is enabled — leave its entities alone
+            continue
+
+        for entity_entry in all_entries:
+            if any(entity_entry.unique_id.startswith(p) for p in prefixes):
+                _LOGGER.debug(
+                    "Removing orphaned entity %s (feature %s is disabled)",
+                    entity_entry.entity_id,
+                    feature_key,
+                )
+                ent_registry.async_remove(entity_entry.entity_id)
 
 
 async def async_remove_config_entry_device(
