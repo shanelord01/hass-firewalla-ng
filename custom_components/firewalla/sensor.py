@@ -16,7 +16,6 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .binary_sensor import _box_display_name
 from .const import (
     CONF_ENABLE_ALARMS,
     CONF_ENABLE_FLOWS,
@@ -24,6 +23,7 @@ from .const import (
     DOMAIN,
 )
 from .coordinator import FirewallaCoordinator
+from .helpers import _box_display_name
 
 _LOGGER = logging.getLogger(__name__)
 
