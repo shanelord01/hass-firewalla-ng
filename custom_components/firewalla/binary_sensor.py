@@ -26,6 +26,12 @@ from .coordinator import FirewallaCoordinator
 _LOGGER = logging.getLogger(__name__)
 
 
+def _box_display_name(box: dict) -> str:
+    """Return a clean box display name without duplicating 'Firewalla'."""
+    name = box.get("name") or box.get("id", "Box")
+    return name if "firewalla" in name.lower() else f"Firewalla {name}"
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
@@ -101,7 +107,7 @@ class FirewallaBoxOnlineSensor(_FirewallaBinarySensor):
         self._attr_unique_id = f"{DOMAIN}_box_online_{self._box_id}"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"box_{self._box_id}")},
-            name=f"Firewalla {box.get('name', self._box_id)}",
+            name=_box_display_name(box),
             manufacturer="Firewalla",
             model=box.get("model", "Firewalla Box"),
             sw_version=box.get("version"),
@@ -208,7 +214,6 @@ class FirewallaRuleActiveSensor(_FirewallaBinarySensor):
     """Indicates whether a Firewalla firewall rule is active."""
 
     _attr_device_class = BinarySensorDeviceClass.RUNNING
-    _attr_translation_key = "rule_active"
 
     def __init__(
         self, coordinator: FirewallaCoordinator, rule: dict[str, Any]
@@ -216,6 +221,16 @@ class FirewallaRuleActiveSensor(_FirewallaBinarySensor):
         super().__init__(coordinator)
         self._rule_id = rule["id"]
         self._attr_unique_id = f"{DOMAIN}_rule_{self._rule_id}"
+
+        # Build a meaningful name from rule properties since these are dynamic entities
+        action = rule.get("action", "Rule").capitalize()
+        target = (
+            rule.get("target", {}).get("value")
+            or rule.get("scope", {}).get("value")
+            or rule.get("notes")
+            or self._rule_id
+        )
+        self._attr_name = f"{action}: {target}"
 
         box_id = rule.get("boxId") or self._first_box_id(coordinator)
         self._attr_device_info = DeviceInfo(
@@ -261,7 +276,6 @@ class FirewallaAlarmSensor(_FirewallaBinarySensor):
     """Binary sensor representing a single Firewalla alarm."""
 
     _attr_device_class = BinarySensorDeviceClass.PROBLEM
-    _attr_translation_key = "alarm_active"
 
     def __init__(
         self, coordinator: FirewallaCoordinator, alarm: dict[str, Any]
@@ -269,6 +283,10 @@ class FirewallaAlarmSensor(_FirewallaBinarySensor):
         super().__init__(coordinator)
         self._alarm_id = alarm["id"]
         self._attr_unique_id = f"{DOMAIN}_alarm_{self._alarm_id}"
+
+        # Use alarm message truncated as the entity name — dynamic per alarm
+        msg = alarm.get("message") or alarm.get("type") or self._alarm_id
+        self._attr_name = f"Alarm: {msg[:40]}"
 
         box_id = alarm.get("boxId") or self._first_box_id(coordinator)
         self._attr_device_info = DeviceInfo(
