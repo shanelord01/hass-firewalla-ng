@@ -20,6 +20,16 @@
           "enable_flows": "Creates a sensor for each recent traffic flow. Can generate a large number of entities.",
           "enable_traffic": "Adds download/upload byte counters per device."
         }
+      },
+      "select_boxes": {
+        "title": "Select Boxes",
+        "description": "Choose which Firewalla boxes to monitor in Home Assistant. All boxes are selected by default.",
+        "data": {
+          "box_filter": "Boxes to Monitor"
+        },
+        "data_description": {
+          "box_filter": "Deselect any boxes you do not want to appear in Home Assistant."
+        }
       }
     },
     "error": {
@@ -41,12 +51,14 @@
           "enable_flows": "Enable Traffic Flow Sensors",
           "enable_traffic": "Enable Bandwidth Sensors",
           "track_devices": "Enable Device Tracker",
-          "stale_days": "Stale Device Removal (days)"
+          "stale_days": "Stale Device Removal (days)",
+          "box_filter": "Active Boxes"
         },
         "data_description": {
           "stale_days": "Devices absent from the API for this many days will be removed from Home Assistant.",
           "enable_flows": "Creates a sensor per recent traffic flow. Can generate many entities.",
-          "enable_traffic": "Adds per-device download/upload sensors."
+          "enable_traffic": "Adds per-device download/upload sensors.",
+          "box_filter": "Select which Firewalla boxes to monitor. All boxes are included by default."
         }
       }
     }
