@@ -122,11 +122,8 @@ class FirewallaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         boxes = await self._client.get_boxes()
         devices = await self._client.get_devices()
 
-        if boxes is None and devices is None:
-            raise UpdateFailed("Both boxes and devices endpoints failed")
-
-        boxes = boxes or []
-        devices = devices or []
+        if not boxes and not devices:
+            raise UpdateFailed("Both boxes and devices endpoints returned empty — possible API failure")
 
         # Apply box filter if configured
         box_filter: list[str] = self._opt(CONF_BOX_FILTER, [])
