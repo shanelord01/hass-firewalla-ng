@@ -1,7 +1,7 @@
 {
   "domain": "firewalla",
   "name": "Firewalla",
-  "version": "2.1.4",
+  "version": "2.1.4a",
   "config_flow": true,
   "documentation": "https://github.com/shanelord01/hass-firewalla-ng",
   "issue_tracker": "https://github.com/shanelord01/hass-firewalla-ng/issues",
