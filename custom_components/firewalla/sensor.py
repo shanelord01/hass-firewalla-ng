@@ -111,7 +111,7 @@ class _FirewallaSensor(CoordinatorEntity[FirewallaCoordinator], SensorEntity):
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, self._device_id)},
             name=device.get("name", f"Device {self._device_id}"),
-            manufacturer=device.get("vendor") or "Firewalla",
+            manufacturer=device.get("macVendor") or device.get("vendor") or "Firewalla",
             connections=(
                 {("mac", device["mac"])} if device.get("mac") else set()
             ),
