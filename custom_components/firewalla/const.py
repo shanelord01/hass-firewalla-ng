@@ -15,6 +15,7 @@ CONF_ENABLE_FLOWS: Final = "enable_flows"
 CONF_ENABLE_TRAFFIC: Final = "enable_traffic"
 CONF_TRACK_DEVICES: Final = "track_devices"
 CONF_STALE_DAYS: Final = "stale_days"
+CONF_BOX_FILTER: Final = "box_filter"
 
 # Defaults
 DEFAULT_SUBDOMAIN: Final = "api"
