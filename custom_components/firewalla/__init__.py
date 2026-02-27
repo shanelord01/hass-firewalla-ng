@@ -18,8 +18,10 @@ from .const import (
     CONF_ENABLE_ALARMS,
     CONF_ENABLE_FLOWS,
     CONF_ENABLE_RULES,
+    CONF_ENABLE_TRAFFIC,
     CONF_SCAN_INTERVAL,
     CONF_SUBDOMAIN,
+    CONF_TRACK_DEVICES,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_SUBDOMAIN,
     DOMAIN,
@@ -72,7 +74,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: FirewallaConfigEntry) ->
 
     # Remove entity registry entries for any features that have been disabled.
     # This prevents previously-created entities from lingering as "Unavailable"
-    # when the user toggles off Alarms, Rules, or Flows in the options flow.
+    # when the user toggles off optional features in the options flow.
     await _async_cleanup_disabled_entities(hass, entry)
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -98,35 +100,54 @@ async def _async_cleanup_disabled_entities(
 ) -> None:
     """Remove entity registry entries for features that have been disabled.
 
-    When a user disables Alarms, Rules, or Flows via the options flow, the
-    platform setup functions simply skip creating those entities — but any
-    entries already registered from a previous run remain in the entity
-    registry and show as Unavailable. This function removes them cleanly.
+    When a user disables an optional feature via the options flow, the platform
+    setup functions simply skip creating those entities — but any entries already
+    registered from a previous run remain in the entity registry and show as
+    Unavailable. This function removes them cleanly on every setup/reload.
+
+    Prefixes must exactly match the unique_id patterns assigned in
+    binary_sensor.py, sensor.py, and device_tracker.py.
     """
 
-    def _opt(key: str) -> bool:
-        return entry.options.get(key, entry.data.get(key, False))
+    def _opt(key: str, default: bool = False) -> bool:
+        return entry.options.get(key, entry.data.get(key, default))
 
-    # Map each optional feature flag to the unique_id prefixes it generates.
-    # These must match the unique_id patterns set in binary_sensor.py and sensor.py.
+    # Each feature flag maps to the unique_id prefix(es) of the entities it creates.
+    # CONF_TRACK_DEVICES defaults True so we pass that through correctly.
     feature_prefixes: dict[str, list[str]] = {
         CONF_ENABLE_ALARMS: [
-            f"{DOMAIN}_alarm_",        # FirewallaAlarmSensor (binary_sensor)
-            f"{DOMAIN}_alarm_count_",  # FirewallaAlarmCountSensor (sensor)
+            f"{DOMAIN}_alarm_",         # FirewallaAlarmSensor (binary_sensor)
+            f"{DOMAIN}_alarm_count_",   # FirewallaAlarmCountSensor (sensor)
         ],
         CONF_ENABLE_RULES: [
-            f"{DOMAIN}_rule_",         # FirewallaRuleActiveSensor (binary_sensor)
+            f"{DOMAIN}_rule_",          # FirewallaRuleActiveSensor (binary_sensor)
         ],
         CONF_ENABLE_FLOWS: [
-            f"{DOMAIN}_flow_",         # FirewallaFlowSensor (sensor)
+            f"{DOMAIN}_flow_",          # FirewallaFlowSensor (sensor)
         ],
+        CONF_ENABLE_TRAFFIC: [
+            f"{DOMAIN}_total_download_",  # FirewallaTotalDownloadSensor (sensor)
+            f"{DOMAIN}_total_upload_",    # FirewallaTotalUploadSensor (sensor)
+        ],
+        CONF_TRACK_DEVICES: [
+            f"{DOMAIN}_tracker_",       # FirewallaDeviceTracker (device_tracker)
+        ],
+    }
+
+    # Default values must match the defaults used in config_flow and sensor/tracker setup.
+    feature_defaults: dict[str, bool] = {
+        CONF_ENABLE_ALARMS: False,
+        CONF_ENABLE_RULES: False,
+        CONF_ENABLE_FLOWS: False,
+        CONF_ENABLE_TRAFFIC: False,
+        CONF_TRACK_DEVICES: True,   # Device tracker is on by default
     }
 
     ent_registry = er.async_get(hass)
     all_entries = er.async_entries_for_config_entry(ent_registry, entry.entry_id)
 
     for feature_key, prefixes in feature_prefixes.items():
-        if _opt(feature_key):
+        if _opt(feature_key, feature_defaults[feature_key]):
             # Feature is enabled — leave its entities alone
             continue
 
