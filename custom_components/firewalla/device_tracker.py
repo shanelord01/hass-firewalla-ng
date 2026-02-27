@@ -62,13 +62,18 @@ class FirewallaDeviceTracker(CoordinatorEntity[FirewallaCoordinator], ScannerEnt
         self._attr_unique_id = f"{DOMAIN}_tracker_{self._device_id}"
         self._attr_name = device.get("name", f"Device {self._device_id}")
 
-        # Attach to the Firewalla Box device card
+        # Attach to the correct parent box using the device's gid/boxId field
         boxes = coordinator.data.get("boxes", []) if coordinator.data else []
-        box_id = boxes[0].get("id", "firewalla_hub") if boxes else "firewalla_hub"
+        device_box_gid = device.get("gid") or device.get("boxId")
+        parent_box = next(
+            (b for b in boxes if b.get("id") == device_box_gid),
+            boxes[0] if boxes else {},
+        )
+        box_id = parent_box.get("id", "firewalla_hub")
 
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"box_{box_id}")},
-            name=f"Firewalla {boxes[0].get('name', box_id)}" if boxes else "Firewalla",
+            name=f"Firewalla {parent_box.get('name', box_id)}" if parent_box else "Firewalla",
             manufacturer="Firewalla",
         )
 
