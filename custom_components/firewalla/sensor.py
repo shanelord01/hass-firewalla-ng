@@ -242,7 +242,7 @@ class FirewallaAlarmCountSensor(CoordinatorEntity[FirewallaCoordinator], SensorE
 
     def __init__(self, coordinator: FirewallaCoordinator) -> None:
         super().__init__(coordinator)
-        self._attr_unique_id = f"{DOMAIN}_alarm_count"
+        self._attr_unique_id = f"{DOMAIN}_alarm_count_{coordinator.config_entry.entry_id}"
 
         boxes = coordinator.data.get("boxes", []) if coordinator.data else []
         box_id = boxes[0].get("id", "global") if boxes else "global"
