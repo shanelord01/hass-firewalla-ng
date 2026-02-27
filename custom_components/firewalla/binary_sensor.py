@@ -22,14 +22,9 @@ from .const import (
     DOMAIN,
 )
 from .coordinator import FirewallaCoordinator
+from .helpers import _box_display_name
 
 _LOGGER = logging.getLogger(__name__)
-
-
-def _box_display_name(box: dict) -> str:
-    """Return a clean box display name without duplicating 'Firewalla'."""
-    name = box.get("name") or box.get("id", "Box")
-    return name if "firewalla" in name.lower() else f"Firewalla {name}"
 
 
 async def async_setup_entry(
@@ -222,7 +217,6 @@ class FirewallaRuleActiveSensor(_FirewallaBinarySensor):
         self._rule_id = rule["id"]
         self._attr_unique_id = f"{DOMAIN}_rule_{self._rule_id}"
 
-        # Build a meaningful name from rule properties since these are dynamic entities
         action = rule.get("action", "Rule").capitalize()
         target = (
             rule.get("target", {}).get("value")
@@ -285,7 +279,6 @@ class FirewallaAlarmSensor(_FirewallaBinarySensor):
         self._alarm_id = alarm["id"]
         self._attr_unique_id = f"{DOMAIN}_alarm_{self._alarm_id}"
 
-        # Use alarm message truncated as the entity name — dynamic per alarm
         msg = alarm.get("message") or alarm.get("type") or self._alarm_id
         self._attr_name = f"Alarm: {msg[:40]}"
 
@@ -315,7 +308,6 @@ class FirewallaAlarmSensor(_FirewallaBinarySensor):
             self.async_write_ha_state()
 
     def _update_state(self, alarm: dict[str, Any]) -> None:
-        # status==2 means cleared in Firewalla API
         self._attr_is_on = alarm.get("status", 1) != 2
         self._attr_extra_state_attributes = {
             ATTR_ALARM_ID: self._alarm_id,
