@@ -95,7 +95,7 @@ logger:
 - Rewritten for HA 2024.1+: [shanelord01/hass-firewalla-ng](https://github.com/shanelord01/hass-firewalla-ng)
 ```
 
-## v2.1.x - Full rewrite for Home Assistant 2024.1+ / 2026.2+
+## v2.x.x - Full rewrite for Home Assistant 2024.1+ / 2026.2+
 
 ### What's New v2.1.3
 - Fix device manufacturer displaying as "Firewalla" for all network devices — now correctly shows the hardware vendor (e.g. "Apple, Inc.", "Samsung", "Espressif") sourced from the macVendor field returned by the Firewalla MSP API
