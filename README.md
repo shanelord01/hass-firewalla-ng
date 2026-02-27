@@ -97,6 +97,9 @@ logger:
 
 ## v2.x.x - Full rewrite for Home Assistant 2024.1+ / 2026.2+
 
+### What's New v2.1.6
+- Fix orphaned entities showing as Unavailable when features are disabled
+
 ### What's New v2.1.5
 - Fix circular import preventing the integration from appearing in Settings → Devices & Services → Add Integration after installing v2.1.4.
 
