@@ -2,7 +2,7 @@
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz)
 
-Monitor your Firewalla MSP-managed devices from Home Assistant. Built against the [Firewalla MSP API v2](https://docs.firewalla.net/) for Home Assistant 2024.1+.
+Monitor one or multiple Firewalla MSP-managed devices from Home Assistant. Built against the [Firewalla MSP API v2](https://docs.firewalla.net/) for Home Assistant 2024.1+.
 
 ---
 
@@ -96,6 +96,10 @@ logger:
 ```
 
 ## v2.1.x - Full rewrite for Home Assistant 2024.1+ / 2026.2+
+
+### What's New v2.1.2
+- Fix alarm count sensor unique_id collision when multiple MSP accounts are configured
+- Fix coordinator API failure detection to correctly catch empty responses (not just None)
 
 ### What's New v2.1.1
 - Multi-box support — accounts with multiple Firewalla units can now select which boxes to monitor during setup, or change the selection later via Options
