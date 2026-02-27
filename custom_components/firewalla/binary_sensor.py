@@ -160,6 +160,7 @@ class FirewallaDeviceOnlineSensor(_FirewallaBinarySensor):
         super().__init__(coordinator)
         self._device_id = device["id"]
         self._attr_unique_id = f"{DOMAIN}_online_{self._device_id}"
+        box_gid = device.get("gid") or device.get("boxId")
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, self._device_id)},
             name=device.get("name", f"Device {self._device_id}"),
@@ -167,6 +168,7 @@ class FirewallaDeviceOnlineSensor(_FirewallaBinarySensor):
             connections=(
                 {("mac", device["mac"])} if device.get("mac") else set()
             ),
+            via_device=(DOMAIN, f"box_{box_gid}") if box_gid else None,
         )
         self._update_state(device)
 
