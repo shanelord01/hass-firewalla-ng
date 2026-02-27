@@ -97,6 +97,9 @@ logger:
 
 ## v2.1.x - Full rewrite for Home Assistant 2024.1+ / 2026.2+
 
+### What's New v2.1.3
+- Fix device manufacturer displaying as "Firewalla" for all network devices — now correctly shows the hardware vendor (e.g. "Apple, Inc.", "Samsung", "Espressif") sourced from the macVendor field returned by the Firewalla MSP API
+
 ### What's New v2.1.2
 - Fix alarm count sensor unique_id collision when multiple MSP accounts are configured
 - Fix coordinator API failure detection to correctly catch empty responses (not just None)
