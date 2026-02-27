@@ -97,6 +97,9 @@ logger:
 
 ## v2.x.x - Full rewrite for Home Assistant 2024.1+ / 2026.2+
 
+### What's New v2.1.7
+- Fix orphaned entities for Bandwidth and Device Tracker when disabled
+
 ### What's New v2.1.6
 - Fix orphaned entities showing as Unavailable when features are disabled
 
