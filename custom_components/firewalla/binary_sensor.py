@@ -276,6 +276,7 @@ class FirewallaAlarmSensor(_FirewallaBinarySensor):
     """Binary sensor representing a single Firewalla alarm."""
 
     _attr_device_class = BinarySensorDeviceClass.PROBLEM
+    _attr_translation_key = "alarm_active"
 
     def __init__(
         self, coordinator: FirewallaCoordinator, alarm: dict[str, Any]
