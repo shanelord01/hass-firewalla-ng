@@ -12,6 +12,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .api import FirewallaApiClient
 from .const import (
+    CONF_BOX_FILTER,
     CONF_ENABLE_ALARMS,
     CONF_ENABLE_FLOWS,
     CONF_ENABLE_RULES,
@@ -114,14 +115,31 @@ class FirewallaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     async def _fetch_core_data(
         self,
     ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-        """Fetch boxes and devices, raising on total failure."""
+        """Fetch boxes and devices, raising on total failure.
+
+        If box_filter is configured, only boxes and devices belonging to
+        the selected box GIDs are returned.
+        """
         boxes = await self._client.get_boxes()
         devices = await self._client.get_devices()
 
         if boxes is None and devices is None:
             raise UpdateFailed("Both boxes and devices endpoints failed")
 
-        return boxes or [], devices or []
+        boxes = boxes or []
+        devices = devices or []
+
+        # Apply box filter if configured
+        box_filter: list[str] = self._opt(CONF_BOX_FILTER, [])
+        if box_filter:
+            boxes = [b for b in boxes if b.get("id") in box_filter]
+            allowed_gids = {b["id"] for b in boxes}
+            devices = [
+                d for d in devices
+                if d.get("gid") in allowed_gids or d.get("boxId") in allowed_gids
+            ]
+
+        return boxes, devices
 
     # ------------------------------------------------------------------
     # Stale-device management
