@@ -97,7 +97,7 @@ logger:
 
 ## v2.1.x - Full rewrite for Home Assistant 2024.1+ / 2026.2+
 
-### What's New v2.1.0
+### What's New v2.1.1
 - Multi-box support — accounts with multiple Firewalla units can now select which boxes to monitor during setup, or change the selection later via Options
 - Network devices now nest under their parent Firewalla box in the HA device hierarchy
 - Fixed manufacturer showing as "Unknown" for device sensors (now correctly shows vendor name or "Firewalla")
