@@ -107,13 +107,15 @@ class _FirewallaSensor(CoordinatorEntity[FirewallaCoordinator], SensorEntity):
         self._device_id = device["id"]
         self._attr_translation_key = translation_key
         self._attr_unique_id = f"{DOMAIN}_{translation_key}_{self._device_id}"
+        box_gid = device.get("gid") or device.get("boxId")
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, self._device_id)},
             name=device.get("name", f"Device {self._device_id}"),
-            manufacturer=device.get("vendor") or "Unknown",
+            manufacturer=device.get("vendor") or "Firewalla",
             connections=(
                 {("mac", device["mac"])} if device.get("mac") else set()
             ),
+            via_device=(DOMAIN, f"box_{box_gid}") if box_gid else None,
         )
 
     def _get_device(self) -> dict[str, Any] | None:
