@@ -97,6 +97,9 @@ logger:
 
 ## v2.x.x - Full rewrite for Home Assistant 2024.1+ / 2026.2+
 
+### What's New v2.1.5
+- Fix circular import preventing the integration from appearing in Settings → Devices & Services → Add Integration after installing v2.1.4.
+
 ### What's New v2.1.4
 - Fix box device names duplicating "Firewalla" when the box name returned by the API already contains it (e.g. "Firewalla name Firewalla" → "name Firewalla")
 - Fix rule sensors all displaying as "Active" with no context — now shows the rule action and target (e.g. "Block: youtube.com")
