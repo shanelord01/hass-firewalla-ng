@@ -97,6 +97,12 @@ logger:
 
 ## v2.x.x - Full rewrite for Home Assistant 2024.1+ / 2026.2+
 
+### What's New v2.1.4
+- Fix box device names duplicating "Firewalla" when the box name returned by the API already contains it (e.g. "Firewalla name Firewalla" → "name Firewalla")
+- Fix rule sensors all displaying as "Active" with no context — now shows the rule action and target (e.g. "Block: youtube.com")
+- Fix alarm sensors all displaying as "Active" with no context — now shows the alarm message (e.g. "Alarm: New device detected on your network")
+- Fix device manufacturer still showing as "Firewalla" in some cases — aligned sensor.py to use macVendor consistent with binary_sensor.py
+
 ### What's New v2.1.3
 - Fix device manufacturer displaying as "Firewalla" for all network devices — now correctly shows the hardware vendor (e.g. "Apple, Inc.", "Samsung", "Espressif") sourced from the macVendor field returned by the Firewalla MSP API
 
