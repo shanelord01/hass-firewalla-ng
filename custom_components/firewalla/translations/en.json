@@ -80,14 +80,12 @@
         }
       },
       "rule_active": {
-        "name": "Active",
         "state": {
           "on": "Active",
           "off": "Paused"
         }
       },
       "alarm_active": {
-        "name": "Active",
         "state": {
           "on": "Active",
           "off": "Cleared"
