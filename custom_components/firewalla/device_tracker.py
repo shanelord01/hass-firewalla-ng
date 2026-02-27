@@ -11,6 +11,7 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from .binary_sensor import _box_display_name
 from .const import CONF_TRACK_DEVICES, DOMAIN
 from .coordinator import FirewallaCoordinator
 
@@ -73,7 +74,7 @@ class FirewallaDeviceTracker(CoordinatorEntity[FirewallaCoordinator], ScannerEnt
 
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"box_{box_id}")},
-            name=f"Firewalla {parent_box.get('name', box_id)}" if parent_box else "Firewalla",
+            name=_box_display_name(parent_box) if parent_box else "Firewalla",
             manufacturer="Firewalla",
         )
 
