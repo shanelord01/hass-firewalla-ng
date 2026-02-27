@@ -16,6 +16,7 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from .binary_sensor import _box_display_name
 from .const import (
     CONF_ENABLE_ALARMS,
     CONF_ENABLE_FLOWS,
@@ -248,7 +249,7 @@ class FirewallaAlarmCountSensor(CoordinatorEntity[FirewallaCoordinator], SensorE
         box_id = boxes[0].get("id", "global") if boxes else "global"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"box_{box_id}")},
-            name=f"Firewalla {boxes[0].get('name', box_id)}" if boxes else "Firewalla",
+            name=_box_display_name(boxes[0]) if boxes else "Firewalla",
             manufacturer="Firewalla",
         )
 
