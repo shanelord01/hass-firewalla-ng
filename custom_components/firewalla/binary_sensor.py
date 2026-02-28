@@ -227,7 +227,7 @@ class FirewallaRuleActiveSensor(_FirewallaBinarySensor):
         )
         self._attr_name = f"{action}: {target}"
 
-        box_id = rule.get("boxId") or self._first_box_id(coordinator)
+        box_id = rule.get("gid") or self._first_box_id(coordinator)
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"box_{box_id}")},
         )
@@ -283,7 +283,7 @@ class FirewallaAlarmSensor(_FirewallaBinarySensor):
         msg = alarm.get("message") or alarm.get("type") or self._alarm_id
         self._attr_name = f"Alarm: {msg[:40]}"
 
-        box_id = alarm.get("boxId") or self._first_box_id(coordinator)
+        box_id = alarm.get("gid") or self._first_box_id(coordinator)
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"box_{box_id}")},
         )
