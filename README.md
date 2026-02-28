@@ -209,6 +209,16 @@ logger:
 
 ## Changelog
 
+### v2.4.0
+- Add **Firewalla MSP** service device with 4 always-on fleet health sensors: Online Boxes, Offline Boxes, Total Alarms, Total Rules — sourced from `GET /v2/stats/simple`
+- Add **`firewalla.search_alarms`** service — search alarms using Firewalla query syntax and return results to automations via `response_variable`. Supports full query syntax: device names, categories, transfer thresholds, timestamps, and more
+- Add **`firewalla.search_flows`** service — search network flows using Firewalla query syntax with the same response mechanism. Enables automations that detect gaming, large transfers, or connections to specific domains
+- Fix alarm fetching silently truncating results for accounts with >200 active alarms — `get_alarms()` now follows `next_cursor` pagination until all active alarms are retrieved (safety cap: 4000)
+- Fix rule sensors (binary sensor and switch) incorrectly linking to the first box in all cases — now correctly uses the `gid` field from the rules API response
+- Fix device tracker MAC address always blank — the Firewalla API uses the MAC address as the device `id`; code now synthesises the `mac` field correctly
+- Fix MAC address sensor always returning `None` — same root cause as above
+- Fix alarm fetching returning all historical alarms including cleared and dismissed — now uses `?query=status:active` to fetch only unresolved alarms
+
 ### v2.3.0
 - Replace rule toggle button with a native **switch entity** per firewall rule — On = Active, Off = Paused
 - Switch state is reflected live in the dashboard; icon changes contextually (shield/shield-off)
