@@ -40,6 +40,7 @@ class FirewallaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             _LOGGER,
             name=f"{DOMAIN}_{entry.entry_id}",
             update_interval=update_interval,
+            config_entry=entry,
         )
         self._client = client
         self._entry = entry
