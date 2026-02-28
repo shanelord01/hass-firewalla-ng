@@ -32,6 +32,12 @@ API_CLIENT: Final = "client"
 STORAGE_KEY: Final = f"{DOMAIN}.device_seen"
 STORAGE_VERSION: Final = 1
 
+# Service names
+SERVICE_PAUSE_RULE: Final = "pause_rule"
+SERVICE_RESUME_RULE: Final = "resume_rule"
+SERVICE_DELETE_ALARM: Final = "delete_alarm"
+SERVICE_RENAME_DEVICE: Final = "rename_device"
+
 # Entity attributes
 ATTR_DEVICE_ID: Final = "device_id"
 ATTR_DEVICE_NAME: Final = "device_name"
