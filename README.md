@@ -30,6 +30,8 @@ Call these from automations, scripts, or **Developer Tools → Actions**:
 |---|---|
 | `firewalla.delete_alarm` | Delete/dismiss an alarm (requires Alarm Sensors enabled) |
 | `firewalla.rename_device` | Rename a network device (requires MSP 2.9+) |
+| `firewalla.search_alarms` | Search alarms by query and return results to an automation via `response_variable` |
+| `firewalla.search_flows` | Search network flows by query and return results to an automation via `response_variable` |
 
 Firewall rules are paused and resumed using the native `switch.turn_off` / `switch.turn_on`
 services targeting the rule's switch entity — no custom service required.
@@ -156,6 +158,52 @@ data:
 
 The `device_id` here is the Home Assistant device ID, visible in the URL when viewing the
 device page under **Settings → Devices & Services**.
+
+### Search Alarms
+
+Returns matching alarms to the calling automation via `response_variable`. Useful for building
+automations that react to specific alarm conditions, devices, or traffic thresholds.
+
+```yaml
+action: firewalla.search_alarms
+data:
+  query: "device.name:Kids_iPad transfer.total:>50MB"
+  limit: 20
+response_variable: alarm_results
+# alarm_results.count  → number of matches
+# alarm_results.results → list of alarm objects
+```
+
+Query syntax examples:
+- `status:active` — only unresolved alarms
+- `device.name:iphone` — alarms for a specific device
+- `transfer.total:>50MB remote.category:game` — large gaming transfers
+- `ts:>1695196894` — alarms after a specific Unix timestamp
+
+Full query syntax is documented in the [Firewalla MSP API docs](https://docs.firewalla.net).
+
+### Search Flows
+
+Returns matching network flows to the calling automation via `response_variable`. Useful for
+detecting traffic patterns, large transfers, or connections to specific domains.
+
+```yaml
+action: firewalla.search_flows
+data:
+  query: "device.name:Kids_iPad category:game"
+  limit: 20
+response_variable: flow_results
+# flow_results.count   → number of matches
+# flow_results.results → list of flow objects
+```
+
+Query syntax examples:
+- `device.name:iphone direction:outbound` — outbound iPhone traffic
+- `total:>1GB domain:*youtube*` — large YouTube transfers
+- `direction:outbound region:CN` — outbound connections to China
+
+Both services paginate automatically and support up to 10 pages (500 results with default
+limit of 50) per call. Use the `limit` field (1–200) to tune results per page.
 
 ---
 
