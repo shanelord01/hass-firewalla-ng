@@ -17,9 +17,6 @@ from homeassistant.helpers import entity_registry as er
 
 from .api import FirewallaApiClient
 from .const import (
-    ATTR_ALARM_ID,
-    ATTR_DEVICE_ID,
-    ATTR_RULE_ID,
     CONF_API_TOKEN,
     CONF_ENABLE_ALARMS,
     CONF_ENABLE_FLOWS,
@@ -33,9 +30,7 @@ from .const import (
     DOMAIN,
     PLATFORMS,
     SERVICE_DELETE_ALARM,
-    SERVICE_PAUSE_RULE,
     SERVICE_RENAME_DEVICE,
-    SERVICE_RESUME_RULE,
 )
 from .coordinator import FirewallaCoordinator
 
@@ -82,16 +77,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: FirewallaConfigEntry) ->
 
     entry.runtime_data = FirewallaData(client=client, coordinator=coordinator)
 
-    # Remove entity registry entries for any features that have been disabled.
-    # This prevents previously-created entities from lingering as "Unavailable"
-    # when the user toggles off optional features in the options flow.
     await _async_cleanup_disabled_entities(hass, entry)
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
 
-    # Register services once — they operate across all loaded entries.
-    if not hass.services.has_service(DOMAIN, SERVICE_PAUSE_RULE):
+    if not hass.services.has_service(DOMAIN, SERVICE_DELETE_ALARM):
         _async_register_services(hass)
 
     return True
@@ -101,18 +92,12 @@ async def async_unload_entry(hass: HomeAssistant, entry: FirewallaConfigEntry) -
     """Unload a config entry."""
     result = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
-    # Remove services when the last entry is unloaded.
     remaining = [
         e for e in hass.config_entries.async_entries(DOMAIN)
         if e.entry_id != entry.entry_id
     ]
     if result and not remaining:
-        for service in (
-            SERVICE_PAUSE_RULE,
-            SERVICE_RESUME_RULE,
-            SERVICE_DELETE_ALARM,
-            SERVICE_RENAME_DEVICE,
-        ):
+        for service in (SERVICE_DELETE_ALARM, SERVICE_RENAME_DEVICE):
             hass.services.async_remove(DOMAIN, service)
 
     return result
@@ -126,7 +111,14 @@ async def _async_update_listener(
 
 
 def _async_register_services(hass: HomeAssistant) -> None:
-    """Register Firewalla action services (called once for all config entries)."""
+    """Register Firewalla action services.
+
+    Rules (pause/resume) are handled natively by the switch platform via
+    switch.turn_on / switch.turn_off — no custom services required.
+
+    delete_alarm and rename_device use HA target selectors so users pick
+    from dropdowns rather than manually entering internal Firewalla IDs.
+    """
 
     def _get_entries() -> list[FirewallaConfigEntry]:
         return [
@@ -135,166 +127,188 @@ def _async_register_services(hass: HomeAssistant) -> None:
             if hasattr(entry, "runtime_data") and entry.runtime_data is not None
         ]
 
-    async def _handle_pause_rule(call: ServiceCall) -> None:
-        rule_id: str = call.data[ATTR_RULE_ID]
-        entries = _get_entries()
-        if not entries:
-            raise ServiceValidationError("No Firewalla account is configured.")
-        for entry in entries:
-            data: FirewallaData = entry.runtime_data
-            if await data.client.async_pause_rule(rule_id):
-                await data.coordinator.async_request_refresh()
-                return
-        raise ServiceValidationError(
-            f"Could not pause rule '{rule_id}'. "
-            "Verify the rule ID is correct and belongs to a configured account."
-        )
-
-    async def _handle_resume_rule(call: ServiceCall) -> None:
-        rule_id: str = call.data[ATTR_RULE_ID]
-        entries = _get_entries()
-        if not entries:
-            raise ServiceValidationError("No Firewalla account is configured.")
-        for entry in entries:
-            data: FirewallaData = entry.runtime_data
-            if await data.client.async_resume_rule(rule_id):
-                await data.coordinator.async_request_refresh()
-                return
-        raise ServiceValidationError(
-            f"Could not resume rule '{rule_id}'. "
-            "Verify the rule ID is correct and belongs to a configured account."
-        )
-
     async def _handle_delete_alarm(call: ServiceCall) -> None:
-        alarm_id: str = call.data[ATTR_ALARM_ID]
-        for entry in _get_entries():
-            data: FirewallaData = entry.runtime_data
-            if not data.coordinator.data:
-                continue
-            alarms = data.coordinator.data.get("alarms", [])
-            alarm = next(
-                (a for a in alarms if isinstance(a, dict) and a.get("id") == alarm_id),
-                None,
+        """Delete an alarm identified by its HA entity_id (from target selector)."""
+        ent_registry = er.async_get(hass)
+        entity_ids: list[str] = call.data.get("entity_id", [])
+
+        if not entity_ids:
+            raise ServiceValidationError(
+                "No alarm entity selected. Pick an alarm binary sensor from the target."
             )
-            if alarm is None:
+
+        for entity_id in entity_ids:
+            entity_entry = ent_registry.async_get(entity_id)
+            if not entity_entry:
+                _LOGGER.warning("Entity %s not found in registry", entity_id)
                 continue
-            gid = str(alarm.get("boxId") or alarm.get("gid") or "")
-            aid = str(alarm.get("aid") or alarm_id)
-            if not gid:
+
+            # unique_id format: firewalla_alarm_{alarm_id}
+            prefix = f"{DOMAIN}_alarm_"
+            if not entity_entry.unique_id.startswith(prefix):
                 raise ServiceValidationError(
-                    f"Cannot determine box GID for alarm '{alarm_id}'."
+                    f"Entity '{entity_id}' is not a Firewalla alarm sensor."
                 )
-            if await data.client.async_delete_alarm(gid, aid):
-                await data.coordinator.async_request_refresh()
-                return
-            raise ServiceValidationError(f"API rejected deletion of alarm '{alarm_id}'.")
-        raise ServiceValidationError(
-            f"Alarm '{alarm_id}' not found. "
-            "Enable 'Alarm Sensors' in the integration options so alarms are fetched."
-        )
+            alarm_id = entity_entry.unique_id[len(prefix):]
+
+            matched = False
+            for entry in _get_entries():
+                data: FirewallaData = entry.runtime_data
+                if not data.coordinator.data:
+                    continue
+                alarms = data.coordinator.data.get("alarms", [])
+                alarm = next(
+                    (a for a in alarms if isinstance(a, dict) and a.get("id") == alarm_id),
+                    None,
+                )
+                if alarm is None:
+                    continue
+
+                gid = str(alarm.get("boxId") or alarm.get("gid") or "")
+                aid = str(alarm.get("aid") or alarm_id)
+                if not gid:
+                    raise ServiceValidationError(
+                        f"Cannot determine box GID for alarm '{alarm_id}'."
+                    )
+                if await data.client.async_delete_alarm(gid, aid):
+                    await data.coordinator.async_request_refresh()
+                    matched = True
+                    break
+                raise ServiceValidationError(
+                    f"API rejected deletion of alarm '{alarm_id}'."
+                )
+
+            if not matched:
+                raise ServiceValidationError(
+                    f"Alarm '{alarm_id}' not found in coordinator data. "
+                    "Ensure 'Enable Alarm Sensors' is on in the integration options."
+                )
 
     async def _handle_rename_device(call: ServiceCall) -> None:
-        device_id: str = call.data[ATTR_DEVICE_ID]
+        """Rename a device identified by its HA device_id (from target selector)."""
+        dev_registry = dr.async_get(hass)
         name: str = call.data["name"]
-        for entry in _get_entries():
-            data: FirewallaData = entry.runtime_data
-            if not data.coordinator.data:
+        ha_device_ids: list[str] = call.data.get("device_id", [])
+
+        if not ha_device_ids:
+            raise ServiceValidationError(
+                "No device selected. Pick a Firewalla client device from the target."
+            )
+
+        for ha_device_id in ha_device_ids:
+            ha_device = dev_registry.async_get(ha_device_id)
+            if not ha_device:
+                _LOGGER.warning("HA device %s not found in registry", ha_device_id)
                 continue
-            devices = data.coordinator.data.get("devices", [])
-            device = next(
-                (d for d in devices if isinstance(d, dict) and d.get("id") == device_id),
+
+            # Box devices use identifier "box_{id}" — exclude those.
+            # Client devices use the raw Firewalla device ID (MAC or similar).
+            firewalla_device_id = next(
+                (
+                    identifier[1]
+                    for identifier in ha_device.identifiers
+                    if identifier[0] == DOMAIN and not identifier[1].startswith("box_")
+                ),
                 None,
             )
-            if device is None:
-                continue
-            gid = str(device.get("gid") or device.get("boxId") or "")
-            if not gid:
-                raise ServiceValidationError(
-                    f"Cannot determine box GID for device '{device_id}'."
-                )
-            if await data.client.async_rename_device(gid, device_id, name):
-                await data.coordinator.async_request_refresh()
-                return
-            raise ServiceValidationError(f"API rejected rename of device '{device_id}'.")
-        raise ServiceValidationError(
-            f"Device '{device_id}' not found in coordinator data."
-        )
 
-    hass.services.async_register(
-        DOMAIN,
-        SERVICE_PAUSE_RULE,
-        _handle_pause_rule,
-        schema=vol.Schema({vol.Required(ATTR_RULE_ID): cv.string}),
-    )
-    hass.services.async_register(
-        DOMAIN,
-        SERVICE_RESUME_RULE,
-        _handle_resume_rule,
-        schema=vol.Schema({vol.Required(ATTR_RULE_ID): cv.string}),
-    )
+            if not firewalla_device_id:
+                raise ServiceValidationError(
+                    "Selected device is not a Firewalla client device "
+                    "(it may be a Firewalla box rather than a network device)."
+                )
+
+            matched = False
+            for entry in _get_entries():
+                data: FirewallaData = entry.runtime_data
+                if not data.coordinator.data:
+                    continue
+                devices = data.coordinator.data.get("devices", [])
+                device = next(
+                    (
+                        d for d in devices
+                        if isinstance(d, dict) and d.get("id") == firewalla_device_id
+                    ),
+                    None,
+                )
+                if device is None:
+                    continue
+
+                gid = str(device.get("gid") or device.get("boxId") or "")
+                if not gid:
+                    raise ServiceValidationError(
+                        f"Cannot determine box GID for device '{firewalla_device_id}'."
+                    )
+                if await data.client.async_rename_device(gid, firewalla_device_id, name):
+                    await data.coordinator.async_request_refresh()
+                    matched = True
+                    break
+                raise ServiceValidationError(
+                    f"API rejected rename of device '{firewalla_device_id}'."
+                )
+
+            if not matched:
+                raise ServiceValidationError(
+                    f"Device '{firewalla_device_id}' not found in coordinator data."
+                )
+
     hass.services.async_register(
         DOMAIN,
         SERVICE_DELETE_ALARM,
         _handle_delete_alarm,
-        schema=vol.Schema({vol.Required(ATTR_ALARM_ID): cv.string}),
+        schema=vol.Schema(
+            {
+                vol.Optional("entity_id"): vol.All(cv.ensure_list, [cv.entity_id]),
+            }
+        ),
     )
     hass.services.async_register(
         DOMAIN,
         SERVICE_RENAME_DEVICE,
         _handle_rename_device,
-        schema=vol.Schema({
-            vol.Required(ATTR_DEVICE_ID): cv.string,
-            vol.Required("name"): vol.All(cv.string, vol.Length(min=1, max=32)),
-        }),
+        schema=vol.Schema(
+            {
+                vol.Optional("device_id"): vol.All(cv.ensure_list, [cv.string]),
+                vol.Required("name"): vol.All(cv.string, vol.Length(min=1, max=32)),
+            }
+        ),
     )
 
 
 async def _async_cleanup_disabled_entities(
     hass: HomeAssistant, entry: ConfigEntry
 ) -> None:
-    """Remove entity registry entries for features that have been disabled.
-
-    When a user disables an optional feature via the options flow, the platform
-    setup functions simply skip creating those entities — but any entries already
-    registered from a previous run remain in the entity registry and show as
-    Unavailable. This function removes them cleanly on every setup/reload.
-
-    Prefixes must exactly match the unique_id patterns assigned in
-    binary_sensor.py, sensor.py, and device_tracker.py.
-    """
+    """Remove entity registry entries for features that have been disabled."""
 
     def _opt(key: str, default: bool = False) -> bool:
         return entry.options.get(key, entry.data.get(key, default))
 
-    # Each feature flag maps to the unique_id prefix(es) of the entities it creates.
-    # CONF_TRACK_DEVICES defaults True so we pass that through correctly.
     feature_prefixes: dict[str, list[str]] = {
         CONF_ENABLE_ALARMS: [
-            f"{DOMAIN}_alarm_",         # FirewallaAlarmSensor (binary_sensor)
-            f"{DOMAIN}_alarm_count_",   # FirewallaAlarmCountSensor (sensor)
+            f"{DOMAIN}_alarm_",
+            f"{DOMAIN}_alarm_count_",
         ],
         CONF_ENABLE_RULES: [
-            f"{DOMAIN}_rule_",          # FirewallaRuleActiveSensor (binary_sensor) + FirewallaRuleToggleButton (button)
+            f"{DOMAIN}_rule_",      # covers rule_ (binary_sensor) and rule_switch_ (switch)
         ],
         CONF_ENABLE_FLOWS: [
-            f"{DOMAIN}_flow_",          # FirewallaFlowSensor (sensor)
+            f"{DOMAIN}_flow_",
         ],
         CONF_ENABLE_TRAFFIC: [
-            f"{DOMAIN}_total_download_",  # FirewallaTotalDownloadSensor (sensor)
-            f"{DOMAIN}_total_upload_",    # FirewallaTotalUploadSensor (sensor)
+            f"{DOMAIN}_total_download_",
+            f"{DOMAIN}_total_upload_",
         ],
         CONF_TRACK_DEVICES: [
-            f"{DOMAIN}_tracker_",       # FirewallaDeviceTracker (device_tracker)
+            f"{DOMAIN}_tracker_",
         ],
     }
 
-    # Default values must match the defaults used in config_flow and sensor/tracker setup.
     feature_defaults: dict[str, bool] = {
         CONF_ENABLE_ALARMS: False,
         CONF_ENABLE_RULES: False,
         CONF_ENABLE_FLOWS: False,
         CONF_ENABLE_TRAFFIC: False,
-        CONF_TRACK_DEVICES: True,   # Device tracker is on by default
+        CONF_TRACK_DEVICES: True,
     }
 
     ent_registry = er.async_get(hass)
@@ -302,9 +316,7 @@ async def _async_cleanup_disabled_entities(
 
     for feature_key, prefixes in feature_prefixes.items():
         if _opt(feature_key, feature_defaults[feature_key]):
-            # Feature is enabled — leave its entities alone
             continue
-
         for entity_entry in all_entries:
             if any(entity_entry.unique_id.startswith(p) for p in prefixes):
                 _LOGGER.debug(
@@ -320,11 +332,7 @@ async def async_remove_config_entry_device(
     config_entry: FirewallaConfigEntry,
     device_entry: dr.DeviceEntry,
 ) -> bool:
-    """Allow manual deletion of any device that is not currently online.
-
-    Devices actively reporting as online via the API cannot be removed.
-    Offline or stale devices can be cleaned up manually by the user.
-    """
+    """Allow manual deletion of any device that is not currently online."""
     coordinator = config_entry.runtime_data.coordinator
     if coordinator.data is None:
         return True
