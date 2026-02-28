@@ -1,8 +1,12 @@
 {
   "entity": {
-    "button": {
-      "rule_toggle": {
-        "default": "mdi:play-pause"
+    "switch": {
+      "rule_switch": {
+        "default": "mdi:shield-check",
+        "state": {
+          "on": "mdi:shield-check",
+          "off": "mdi:shield-off-outline"
+        }
       }
     },
     "binary_sensor": {
