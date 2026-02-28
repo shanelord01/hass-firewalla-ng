@@ -21,6 +21,7 @@ Built against the [Firewalla MSP API v2](https://docs.firewalla.net/) for Home A
 | Firewall rule switch (active/paused toggle) | ❌ Off | Options → Rule Sensors |
 | Per-flow traffic sensors | ❌ Off | Options → Flow Sensors |
 | Automatic stale device cleanup | ✅ 30 days | Options → Stale Device Removal |
+| Stale device tracking persists across HA restarts | ✅ Always | — |
 
 ### Actions (Services)
 
@@ -256,6 +257,12 @@ logger:
 ---
 
 ## Changelog
+
+### v2.4.1
+- Fix stale device tracking resetting on every HA restart — last-seen timestamps are now persisted to disk via `homeassistant.helpers.storage` and loaded before the first poll, so stale-day counters survive restarts correctly
+- Timestamps are written only when a device transitions from present to absent — no per-poll disk writes
+- Timestamps older than `stale_days × 2` are pruned on load to prevent unbounded storage growth
+- Add linked device name and ID to alarm binary sensor attributes — `device_name` and `device_id` attributes now show which network device triggered the alarm (sourced from `alarm.device.id`, resolved against the live devices list)
 
 ### v2.4.0
 - Add **Firewalla MSP** service device with 4 always-on fleet health sensors: Online Boxes, Offline Boxes, Total Alarms, Total Rules — sourced from `GET /v2/stats/simple`
