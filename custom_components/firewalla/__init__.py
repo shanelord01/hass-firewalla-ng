@@ -274,7 +274,7 @@ async def _async_cleanup_disabled_entities(
             f"{DOMAIN}_alarm_count_",   # FirewallaAlarmCountSensor (sensor)
         ],
         CONF_ENABLE_RULES: [
-            f"{DOMAIN}_rule_",          # FirewallaRuleActiveSensor (binary_sensor)
+            f"{DOMAIN}_rule_",          # FirewallaRuleActiveSensor (binary_sensor) + FirewallaRuleToggleButton (button)
         ],
         CONF_ENABLE_FLOWS: [
             f"{DOMAIN}_flow_",          # FirewallaFlowSensor (sensor)
