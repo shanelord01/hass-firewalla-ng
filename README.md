@@ -178,6 +178,9 @@ logger:
 
 ## Changelog
 
+### v2.2.1
+- Fix rule binary sensors missing icon — `rule_active` translation key was not set on `FirewallaRuleActiveSensor`, so the shield icon from `icons.json` was never applied
+
 ### v2.2.0
 - Fix flow fetching: API query parameter was `count` instead of `limit` — flows now correctly respect the configured limit
 - Add `firewalla.pause_rule` service — pause an active firewall rule from HA automations
