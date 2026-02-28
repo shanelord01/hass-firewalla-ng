@@ -64,6 +64,11 @@
     }
   },
   "entity": {
+    "button": {
+      "rule_toggle": {
+        "name": "Toggle"
+      }
+    },
     "binary_sensor": {
       "box_online": {
         "name": "Online",
