@@ -209,6 +209,7 @@ class FirewallaRuleActiveSensor(_FirewallaBinarySensor):
     """Indicates whether a Firewalla firewall rule is active."""
 
     _attr_device_class = BinarySensorDeviceClass.RUNNING
+    _attr_translation_key = "rule_active"
 
     def __init__(
         self, coordinator: FirewallaCoordinator, rule: dict[str, Any]
