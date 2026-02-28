@@ -76,6 +76,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: FirewallaConfigEntry) ->
         update_interval=timedelta(seconds=scan_interval),
     )
 
+    # Load persisted device-seen timestamps before first poll so stale-day
+    # counters survive HA restarts.
+    await coordinator.async_load_store()
+
     await coordinator.async_config_entry_first_refresh()
 
     entry.runtime_data = FirewallaData(client=client, coordinator=coordinator)
