@@ -12,6 +12,7 @@ from homeassistant.components.sensor import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import UnitOfInformation
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.device_registry import DeviceEntryType
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -19,6 +20,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import (
     CONF_ENABLE_ALARMS,
     CONF_ENABLE_FLOWS,
+    CONF_ENABLE_TARGET_LISTS,
     CONF_ENABLE_TRAFFIC,
     DOMAIN,
 )
@@ -45,6 +47,7 @@ async def async_setup_entry(
     enable_traffic = _opt(CONF_ENABLE_TRAFFIC)
     enable_flows = _opt(CONF_ENABLE_FLOWS)
     enable_alarms = _opt(CONF_ENABLE_ALARMS)
+    enable_target_lists = _opt(CONF_ENABLE_TARGET_LISTS)
 
     entities: list[SensorEntity] = []
     devices = coordinator.data.get("devices", [])
@@ -64,25 +67,43 @@ async def async_setup_entry(
             entities.append(FirewallaTotalUploadSensor(coordinator, device))
 
     # Flow sensors (optional)
+    # Per Firewalla MSP API docs, flow.device.id is the device MAC address
+    # (uppercase, e.g. "AA:BB:CC:DD:EE:FF"). Normalise to uppercase on both
+    # sides to ensure reliable matching regardless of how the devices endpoint
+    # returns MAC addresses.
     if enable_flows:
         for flow in coordinator.data.get("flows", []):
             if isinstance(flow, dict) and "id" in flow:
-                dev_id = (
-                    (flow.get("device") or {}).get("id")
-                    or (flow.get("source") or {}).get("id")
-                )
+                flow_device_id = (flow.get("device") or {}).get("id", "").upper()
                 device = next(
-                    (d for d in devices if d.get("id") == dev_id), None
-                )
+                    (
+                        d for d in devices
+                        if isinstance(d, dict) and d.get("id", "").upper() == flow_device_id
+                    ),
+                    None,
+                ) if flow_device_id else None
                 entities.append(FirewallaFlowSensor(coordinator, flow, device))
 
     # Alarm summary sensor (optional)
     if enable_alarms:
         entities.append(FirewallaAlarmCountSensor(coordinator))
 
+    # MSP simple stats — always enabled, single lightweight API call
+    entities.extend([
+        FirewallaMspOnlineBoxesSensor(coordinator),
+        FirewallaMspOfflineBoxesSensor(coordinator),
+        FirewallaMspTotalAlarmsSensor(coordinator),
+        FirewallaMspTotalRulesSensor(coordinator),
+    ])
+
+    # Target list sensors (optional)
+    if enable_target_lists:
+        for tl in coordinator.data.get("target_lists", []):
+            if isinstance(tl, dict) and "id" in tl:
+                entities.append(FirewallaTargetListSensor(coordinator, tl))
+
     if entities:
         async_add_entities(entities)
-
 
 # ---------------------------------------------------------------------------
 # Base
@@ -164,8 +185,8 @@ class FirewallaMacAddressSensor(_FirewallaSensor):
         device = self._get_device()
         if not device:
             return None
-        mac = device.get("mac", "")
-        return mac[4:] if mac.startswith("mac:") else mac or None
+        # mac is synthesised from device id in api.py — already clean
+        return device.get("mac") or None
 
 
 class FirewallaNetworkNameSensor(_FirewallaSensor):
@@ -338,3 +359,162 @@ class FirewallaFlowSensor(CoordinatorEntity[FirewallaCoordinator], SensorEntity)
         return round(
             (flow.get("download", 0) + flow.get("upload", 0)) / 1024, 2
         )
+
+# ---------------------------------------------------------------------------
+# MSP Simple Stats Sensors
+# ---------------------------------------------------------------------------
+
+class FirewallaMspBaseSensor(CoordinatorEntity[FirewallaCoordinator], SensorEntity):
+    """Base class for MSP-wide summary sensors.
+
+    These attach to a virtual 'Firewalla MSP' service device rather than any
+    individual box, using DeviceEntryType.SERVICE as recommended by HA for
+    cloud/account-level entities.
+    """
+
+    _attr_has_entity_name = True
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    # Shared DeviceInfo for all MSP sensors — built once on first instantiation
+    _MSP_DEVICE_INFO = DeviceInfo(
+        identifiers={(DOMAIN, "msp_global")},
+        name="Firewalla MSP",
+        manufacturer="Firewalla",
+        model="MSP",
+        entry_type=DeviceEntryType.SERVICE,
+    )
+
+    def __init__(
+        self,
+        coordinator: FirewallaCoordinator,
+        key: str,
+        translation_key: str,
+    ) -> None:
+        """Initialise the sensor."""
+        super().__init__(coordinator)
+        self._key = key
+        self._attr_translation_key = translation_key
+        self._attr_unique_id = f"{DOMAIN}_msp_{key}"
+        self._attr_device_info = self._MSP_DEVICE_INFO
+
+    @property
+    def native_value(self) -> int | None:
+        """Return the current value from stats/simple."""
+        stats = self.coordinator.data.get("stats_simple", {}) if self.coordinator.data else {}
+        return stats.get(self._key)
+
+
+class FirewallaMspOnlineBoxesSensor(FirewallaMspBaseSensor):
+    """Number of Firewalla boxes currently online across the MSP account."""
+
+    _attr_icon = "mdi:router-wireless"
+
+    def __init__(self, coordinator: FirewallaCoordinator) -> None:
+        super().__init__(coordinator, "onlineBoxes", "msp_online_boxes")
+
+
+class FirewallaMspOfflineBoxesSensor(FirewallaMspBaseSensor):
+    """Number of Firewalla boxes currently offline across the MSP account."""
+
+    _attr_icon = "mdi:router-wireless-off"
+
+    def __init__(self, coordinator: FirewallaCoordinator) -> None:
+        super().__init__(coordinator, "offlineBoxes", "msp_offline_boxes")
+
+
+class FirewallaMspTotalAlarmsSensor(FirewallaMspBaseSensor):
+    """Total active alarms across the MSP account."""
+
+    _attr_icon = "mdi:shield-alert"
+
+    def __init__(self, coordinator: FirewallaCoordinator) -> None:
+        super().__init__(coordinator, "alarms", "msp_total_alarms")
+
+
+class FirewallaMspTotalRulesSensor(FirewallaMspBaseSensor):
+    """Total firewall rules across the MSP account."""
+
+    _attr_icon = "mdi:shield-half-full"
+
+    def __init__(self, coordinator: FirewallaCoordinator) -> None:
+        super().__init__(coordinator, "rules", "msp_total_rules")
+
+
+# ---------------------------------------------------------------------------
+# Target List Sensor
+# ---------------------------------------------------------------------------
+
+class FirewallaTargetListSensor(CoordinatorEntity[FirewallaCoordinator], SensorEntity):
+    """Sensor representing a single Firewalla target list.
+
+    State = number of entries in the list.
+    Attributes expose the full list content, owner, category, and timestamps
+    so automations can inspect or react to target list membership changes.
+
+    Attached to the 'Firewalla MSP' service device alongside the stats sensors.
+    Gated by CONF_ENABLE_TARGET_LISTS.
+    """
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "target_list"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_icon = "mdi:format-list-bulleted"
+    _attr_native_unit_of_measurement = "entries"
+
+    def __init__(
+        self,
+        coordinator: FirewallaCoordinator,
+        tl: dict[str, Any],
+    ) -> None:
+        """Initialise the sensor from a target list dict."""
+        super().__init__(coordinator)
+        self._tl_id: str = tl["id"]
+        self._attr_unique_id = f"{DOMAIN}_target_list_{self._tl_id}"
+
+        # Use the TL name as the entity name within the MSP device
+        self._attr_name = tl.get("name", self._tl_id)
+
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, "msp_global")},
+            name="Firewalla MSP",
+            manufacturer="Firewalla",
+            model="MSP",
+            entry_type=DeviceEntryType.SERVICE,
+        )
+
+    def _get_tl(self) -> dict[str, Any] | None:
+        """Find this target list in the latest coordinator data."""
+        return next(
+            (
+                tl
+                for tl in self.coordinator.data.get("target_lists", [])
+                if tl.get("id") == self._tl_id
+            ),
+            None,
+        )
+
+    @property
+    def native_value(self) -> int | None:
+        """Return the number of entries in the target list."""
+        tl = self._get_tl()
+        if tl is None:
+            return None
+        return len(tl.get("targets", []))
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Expose target list metadata and contents as attributes."""
+        tl = self._get_tl()
+        if not tl:
+            return {}
+        return {
+            "owner": tl.get("owner"),
+            "category": tl.get("category"),
+            "notes": tl.get("notes"),
+            "targets": tl.get("targets", []),
+            "last_updated": tl.get("lastUpdated"),
+        }
+
+    @property
+    def entity_registry_enabled_default(self) -> bool:
+        return True
