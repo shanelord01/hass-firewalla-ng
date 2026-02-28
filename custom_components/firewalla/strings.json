@@ -64,9 +64,13 @@
     }
   },
   "entity": {
-    "button": {
-      "rule_toggle": {
-        "name": "Toggle"
+    "switch": {
+      "rule_switch": {
+        "name": "Rule",
+        "state": {
+          "on": "Active",
+          "off": "Paused"
+        }
       }
     },
     "binary_sensor": {
