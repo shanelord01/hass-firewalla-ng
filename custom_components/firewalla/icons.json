@@ -1,5 +1,10 @@
 {
   "entity": {
+    "button": {
+      "rule_toggle": {
+        "default": "mdi:play-pause"
+      }
+    },
     "binary_sensor": {
       "box_online": {
         "default": "mdi:router-network",
