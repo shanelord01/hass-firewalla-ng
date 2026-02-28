@@ -25,3 +25,73 @@ rename_device:
       example: "My Laptop"
       selector:
         text:
+
+search_alarms:
+  name: Search Alarms
+  description: >
+    Search Firewalla alarms using the MSP query syntax and return matching results
+    to the calling automation via response_variable. Useful for building automations
+    that act on specific alarm conditions, devices, or traffic thresholds.
+
+    Example queries:
+      status:active device.name:iphone
+      transfer.total:>50MB remote.category:game
+      ts:>1695196894 box.id:00000000-0000-0000-0000-000000000000
+
+    Full query syntax: https://docs.firewalla.net
+  fields:
+    query:
+      name: Query
+      description: >
+        Firewalla search query string. See the Firewalla MSP API docs for full
+        query syntax including qualifiers, wildcards, and numeric comparisons.
+      required: true
+      example: "device.name:Kids_iPad transfer.total:>50MB"
+      selector:
+        text:
+    limit:
+      name: Limit
+      description: Maximum results per page (1–200). Default is 50.
+      required: false
+      default: 50
+      example: 50
+      selector:
+        number:
+          min: 1
+          max: 200
+          mode: box
+
+search_flows:
+  name: Search Flows
+  description: >
+    Search Firewalla network flows using the MSP query syntax and return matching
+    results to the calling automation via response_variable. Useful for detecting
+    traffic patterns, large transfers, or connections to specific domains.
+
+    Example queries:
+      device.name:Kids_iPad category:game
+      total:>1GB domain:*youtube*
+      direction:outbound region:CN
+
+    Full query syntax: https://docs.firewalla.net
+  fields:
+    query:
+      name: Query
+      description: >
+        Firewalla search query string. See the Firewalla MSP API docs for full
+        query syntax including qualifiers, wildcards, and numeric comparisons.
+      required: true
+      example: "device.name:Kids_iPad category:game"
+      selector:
+        text:
+    limit:
+      name: Limit
+      description: Maximum results per page (1–200). Default is 50.
+      required: false
+      default: 50
+      example: 50
+      selector:
+        number:
+          min: 1
+          max: 200
+          mode: box
