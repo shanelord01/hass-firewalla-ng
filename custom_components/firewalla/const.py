@@ -3,7 +3,7 @@ from typing import Final
 
 DOMAIN: Final = "firewalla"
 BRAND: Final = "Firewalla"
-PLATFORMS: Final = ["sensor", "binary_sensor", "button", "device_tracker"]
+PLATFORMS: Final = ["sensor", "binary_sensor", "switch", "device_tracker"]
 
 # Configuration keys
 CONF_API_TOKEN: Final = "api_token"
@@ -33,8 +33,6 @@ STORAGE_KEY: Final = f"{DOMAIN}.device_seen"
 STORAGE_VERSION: Final = 1
 
 # Service names
-SERVICE_PAUSE_RULE: Final = "pause_rule"
-SERVICE_RESUME_RULE: Final = "resume_rule"
 SERVICE_DELETE_ALARM: Final = "delete_alarm"
 SERVICE_RENAME_DEVICE: Final = "rename_device"
 
