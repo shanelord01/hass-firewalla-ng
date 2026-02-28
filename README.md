@@ -21,6 +21,7 @@ Built against the [Firewalla MSP API v2](https://docs.firewalla.net/) for Home A
 | Firewall rule active/paused sensors | ❌ Off | Options → Rule Sensors |
 | Per-flow traffic sensors | ❌ Off | Options → Flow Sensors |
 | Automatic stale device cleanup | ✅ 30 days | Options → Stale Device Removal |
+| Rule toggle button | ❌ Off | Options → Rule Sensors |
 
 ### Actions (Services)
 
@@ -178,8 +179,14 @@ logger:
 
 ## Changelog
 
+### v2.2.2
+- Add rule toggle button entities — each firewall rule now has a Toggle button
+  on its device card that pauses an active rule or resumes a paused one,
+  with a contextual icon reflecting current state
+
 ### v2.2.1
-- Fix rule binary sensors missing icon — `rule_active` translation key was not set on `FirewallaRuleActiveSensor`, so the shield icon from `icons.json` was never applied
+- Fix rule binary sensors missing icon — `rule_active` translation key was not set on `FirewallaRuleActiveSensor`,
+  so the shield icon from `icons.json` was never applied
 
 ### v2.2.0
 - Fix flow fetching: API query parameter was `count` instead of `limit` — flows now correctly respect the configured limit
