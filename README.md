@@ -18,21 +18,21 @@ Built against the [Firewalla MSP API v2](https://docs.firewalla.net/) for Home A
 | Bandwidth (download/upload) per device | ❌ Off | Options → Bandwidth Sensors |
 | Active alarm count + details | ❌ Off | Options → Alarm Sensors |
 | Individual alarm binary sensors | ❌ Off | Options → Alarm Sensors |
-| Firewall rule active/paused sensors | ❌ Off | Options → Rule Sensors |
+| Firewall rule switch (active/paused toggle) | ❌ Off | Options → Rule Sensors |
 | Per-flow traffic sensors | ❌ Off | Options → Flow Sensors |
 | Automatic stale device cleanup | ✅ 30 days | Options → Stale Device Removal |
-| Rule toggle button | ❌ Off | Options → Rule Sensors |
 
 ### Actions (Services)
 
-Call these from automations or Developer Tools → Services:
+Call these from automations, scripts, or **Developer Tools → Actions**:
 
 | Service | Description |
 |---|---|
-| `firewalla.pause_rule` | Pause an active firewall rule |
-| `firewalla.resume_rule` | Resume a paused firewall rule |
 | `firewalla.delete_alarm` | Delete/dismiss an alarm (requires Alarm Sensors enabled) |
 | `firewalla.rename_device` | Rename a network device (requires MSP 2.9+) |
+
+Firewall rules are paused and resumed using the native `switch.turn_off` / `switch.turn_on`
+services targeting the rule's switch entity — no custom service required.
 
 ---
 
@@ -80,8 +80,6 @@ After installing and restarting:
 5. Choose which optional features to enable (you can change these later)
 6. Click **Submit**
 
-If you have multiple Firewalla boxes, a second screen will let you choose which boxes to monitor.
-
 ---
 
 ## Options
@@ -92,7 +90,7 @@ All options can be changed after setup via **Settings → Devices & Services →
 |---|---|---|
 | Poll Interval | How often to query the API (seconds) | 300s (5 min) |
 | Enable Alarm Sensors | Alarm count + per-alarm binary sensors | Off |
-| Enable Rule Sensors | Active/paused binary sensor per firewall rule | Off |
+| Enable Rule Sensors | Active/paused switch per firewall rule | Off |
 | Enable Flow Sensors | Per-flow transfer sensor (can create many entities) | Off |
 | Enable Bandwidth Sensors | Download/upload totals per device | Off |
 | Enable Device Tracker | Presence detection via ScannerEntity | On |
@@ -102,46 +100,78 @@ All options can be changed after setup via **Settings → Devices & Services →
 
 ## Using the Actions (Services)
 
-These can be called from automations, scripts, or **Developer Tools → Services**.
+### Controlling Firewall Rules
 
-### Pause / Resume a Firewall Rule
-
-Find the rule ID in the rule binary sensor's attributes (`rule_id`).
-
-```yaml
-service: firewalla.pause_rule
-data:
-  rule_id: "abc123def456"
-```
+When **Enable Rule Sensors** is on, each firewall rule gets a **switch entity** on the box
+device card. The switch reflects live rule state — **On = Active**, **Off = Paused** — and can
+be toggled directly from the dashboard or targeted in automations using the standard switch
+services:
 
 ```yaml
-service: firewalla.resume_rule
-data:
-  rule_id: "abc123def456"
+# Pause a rule
+action: switch.turn_off
+target:
+  entity_id: switch.firewalla_block_netflix_rule
+
+# Resume a rule
+action: switch.turn_on
+target:
+  entity_id: switch.firewalla_block_netflix_rule
 ```
+
+The rule entity ID will match the pattern `switch.firewalla_<action>_<target>_rule`.
+You can find the exact entity ID in **Settings → Devices & Services → [your Firewalla box] → entities**.
 
 ### Delete an Alarm
 
 Requires **Alarm Sensors** to be enabled in options.
-Find the alarm ID in the alarm binary sensor's attributes (`alarm_id`).
+
+In **Developer Tools → Actions**, select `Firewalla: Delete Alarm` and use the entity picker
+to choose the alarm's binary sensor — no need to find internal IDs.
+
+In automations or scripts:
 
 ```yaml
-service: firewalla.delete_alarm
-data:
-  alarm_id: "1234"
+action: firewalla.delete_alarm
+target:
+  entity_id: binary_sensor.firewalla_alarm_intrusion_detected
 ```
 
 ### Rename a Device
 
 Requires **Firewalla MSP 2.9+**.
-Find the device ID in any device sensor's attributes (`device_id`).
+
+In **Developer Tools → Actions**, select `Firewalla: Rename Device` and use the device picker
+to choose the network device, then enter the new name.
+
+In automations or scripts:
 
 ```yaml
-service: firewalla.rename_device
+action: firewalla.rename_device
+target:
+  device_id: a1b2c3d4e5f6g7h8
 data:
-  device_id: "aa:bb:cc:dd:ee:ff"
   name: "My Laptop"
 ```
+
+The `device_id` here is the Home Assistant device ID, visible in the URL when viewing the
+device page under **Settings → Devices & Services**.
+
+---
+
+## Migrating from v2.2.x
+
+If you have existing automations using `firewalla.pause_rule` or `firewalla.resume_rule`,
+update them to use the native switch services:
+
+| Old | New |
+|---|---|
+| `firewalla.pause_rule` with `rule_id: "abc123"` | `switch.turn_off` targeting the rule switch entity |
+| `firewalla.resume_rule` with `rule_id: "abc123"` | `switch.turn_on` targeting the rule switch entity |
+
+The rule switch entity ID can be found in the Firewalla box device card after enabling
+Rule Sensors. The `rule_id` value is still exposed as an attribute on the switch entity
+if you need it for reference.
 
 ---
 
@@ -179,14 +209,15 @@ logger:
 
 ## Changelog
 
-### v2.2.2
-- Add rule toggle button entities — each firewall rule now has a Toggle button
-  on its device card that pauses an active rule or resumes a paused one,
-  with a contextual icon reflecting current state
+### v2.3.0
+- Replace rule toggle button with a native **switch entity** per firewall rule — On = Active, Off = Paused
+- Switch state is reflected live in the dashboard; icon changes contextually (shield/shield-off)
+- Remove `firewalla.pause_rule` and `firewalla.resume_rule` custom services — use `switch.turn_off` / `switch.turn_on` instead (standard HA services work in all automations and scripts)
+- Upgrade `firewalla.delete_alarm` to use a **target entity selector** — pick the alarm from a dropdown in Developer Tools instead of entering a raw ID
+- Upgrade `firewalla.rename_device` to use a **target device selector** — pick the device from a dropdown in Developer Tools instead of entering a raw MAC address
 
 ### v2.2.1
-- Fix rule binary sensors missing icon — `rule_active` translation key was not set on `FirewallaRuleActiveSensor`,
-  so the shield icon from `icons.json` was never applied
+- Fix rule active sensor not rendering shield icon — missing `_attr_translation_key` on `FirewallaRuleActiveSensor`
 
 ### v2.2.0
 - Fix flow fetching: API query parameter was `count` instead of `limit` — flows now correctly respect the configured limit
