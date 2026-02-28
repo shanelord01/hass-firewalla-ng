@@ -310,9 +310,25 @@ class FirewallaAlarmSensor(_FirewallaBinarySensor):
 
     def _update_state(self, alarm: dict[str, Any]) -> None:
         self._attr_is_on = alarm.get("status", 1) != 2
+
+        # Resolve linked device name from coordinator data for the attribute
+        device_id = (alarm.get("device") or {}).get("id")
+        device_name: str | None = None
+        if device_id:
+            matched = next(
+                (
+                    d for d in self.coordinator.data.get("devices", [])
+                    if d.get("id") == device_id
+                ),
+                None,
+            )
+            device_name = matched.get("name") if matched else device_id
+
         self._attr_extra_state_attributes = {
             ATTR_ALARM_ID: self._alarm_id,
             "message": alarm.get("message"),
             "type": alarm.get("type"),
             "timestamp": alarm.get("ts"),
+            "device_id": device_id,
+            "device_name": device_name,
         }
