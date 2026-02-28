@@ -45,15 +45,16 @@ class FirewallaApiClient:
         method: str,
         endpoint: str,
         params: dict[str, Any] | None = None,
+        json: dict[str, Any] | None = None,
     ) -> list[dict[str, Any]] | dict[str, Any] | None:
         """Make an authenticated API request. Returns None on any failure."""
         url = f"{self._base_url}/{endpoint}"
-        _LOGGER.debug("%s %s params=%s", method, url, params)
+        _LOGGER.debug("%s %s params=%s json=%s", method, url, params, json)
 
         try:
             async with async_timeout.timeout(DEFAULT_TIMEOUT):
                 response = await self._session.request(
-                    method, url, headers=self._headers, params=params
+                    method, url, headers=self._headers, params=params, json=json
                 )
 
             # Detect HTML error pages (e.g. 302 to login page)
@@ -79,6 +80,9 @@ class FirewallaApiClient:
                 result = await response.json(content_type=None)
             except (aiohttp.ContentTypeError, ValueError) as exc:
                 body = await response.text()
+                if not body.strip():
+                    # Empty body is normal for action endpoints (DELETE, POST pause/resume)
+                    return {}
                 _LOGGER.error("Invalid JSON from %s: %s - %.200s", url, exc, body)
                 return None
 
@@ -203,7 +207,7 @@ class FirewallaApiClient:
         cursor: str | None = None,
     ) -> list[dict[str, Any]]:
         """Return recent traffic flows (first page only for HA purposes)."""
-        params: dict[str, Any] = {"count": limit}
+        params: dict[str, Any] = {"limit": limit}
         if cursor:
             params["cursor"] = cursor
 
@@ -211,3 +215,31 @@ class FirewallaApiClient:
         if not isinstance(raw, list):
             return []
         return raw
+
+    # ------------------------------------------------------------------
+    # Action endpoints
+    # ------------------------------------------------------------------
+
+    async def async_pause_rule(self, rule_id: str) -> bool:
+        """Pause an active firewall rule. Returns True on success."""
+        result = await self._api_request("POST", f"rules/{rule_id}/pause")
+        return result is not None
+
+    async def async_resume_rule(self, rule_id: str) -> bool:
+        """Resume a paused firewall rule. Returns True on success."""
+        result = await self._api_request("POST", f"rules/{rule_id}/resume")
+        return result is not None
+
+    async def async_delete_alarm(self, gid: str, aid: str) -> bool:
+        """Delete/dismiss an alarm by box GID and alarm ID. Returns True on success."""
+        result = await self._api_request("DELETE", f"alarms/{gid}/{aid}")
+        return result is not None
+
+    async def async_rename_device(self, gid: str, device_id: str, name: str) -> bool:
+        """Rename a network device (requires MSP 2.9+). Returns True on success."""
+        result = await self._api_request(
+            "PATCH",
+            f"boxes/{gid}/devices/{device_id}",
+            json={"name": name},
+        )
+        return result is not None
