@@ -1,59 +1,23 @@
-pause_rule:
-  name: Pause Rule
-  description: >
-    Pause an active Firewalla firewall rule. The rule ID can be found in the
-    rule binary sensor's attributes (rule_id).
-  fields:
-    rule_id:
-      name: Rule ID
-      description: The ID of the firewall rule to pause.
-      required: true
-      example: "abc123def456"
-      selector:
-        text:
-
-resume_rule:
-  name: Resume Rule
-  description: >
-    Resume a paused Firewalla firewall rule. The rule ID can be found in the
-    rule binary sensor's attributes (rule_id).
-  fields:
-    rule_id:
-      name: Rule ID
-      description: The ID of the firewall rule to resume.
-      required: true
-      example: "abc123def456"
-      selector:
-        text:
-
 delete_alarm:
   name: Delete Alarm
   description: >
-    Delete (dismiss) a Firewalla alarm. Requires 'Enable Alarm Sensors' to be
-    on so the alarm is present in coordinator data. The alarm ID can be found
-    in the alarm binary sensor's attributes (alarm_id).
-  fields:
-    alarm_id:
-      name: Alarm ID
-      description: The ID of the alarm to delete.
-      required: true
-      example: "1234"
-      selector:
-        text:
+    Delete (dismiss) a Firewalla alarm. Select the alarm's binary sensor entity
+    from the target picker — no need to look up internal IDs manually.
+    Requires 'Enable Alarm Sensors' to be on in the integration options.
+  target:
+    entity:
+      integration: firewalla
+      domain: binary_sensor
 
 rename_device:
   name: Rename Device
   description: >
-    Rename a network device on Firewalla (requires MSP 2.9+). The device ID
-    can be found in the device sensor's attributes (device_id).
+    Rename a Firewalla network device (requires MSP 2.9+). Select the device
+    from the target picker and enter the new name.
+  target:
+    device:
+      integration: firewalla
   fields:
-    device_id:
-      name: Device ID
-      description: The ID of the device to rename.
-      required: true
-      example: "mac:aa:bb:cc:dd:ee:ff"
-      selector:
-        text:
     name:
       name: Name
       description: The new name for the device (1–32 characters).
