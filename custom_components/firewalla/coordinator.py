@@ -161,7 +161,11 @@ class FirewallaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._device_last_seen[dev_id] = now
         self._known_device_ids.update(current_ids)
 
-        # Persist timestamps when devices go absent so stale tracking survives restarts
+        # Persist timestamps when devices go absent so stale tracking survives restarts.
+        # Intentionally NOT written on every poll — many HA installs run on SD cards
+        # where per-poll writes (e.g. every 60s) would cause significant write-wear.
+        # Writing only on the Present→Absent transition keeps I/O minimal while still
+        # ensuring counters are durable across restarts.
         if newly_absent:
             await self._async_persist_timestamps()
 
