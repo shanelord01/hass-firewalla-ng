@@ -57,8 +57,8 @@ class FirewallaDeviceTracker(CoordinatorEntity[FirewallaCoordinator], ScannerEnt
 
         # Cache MAC at instantiation so automations referencing this tracker
         # by MAC continue to work even when the device is offline.
-        raw_mac = device.get("mac", "")
-        self._mac = raw_mac[4:] if raw_mac.startswith("mac:") else raw_mac
+        # mac is synthesised from device id in api.py get_devices() — already clean
+        self._mac = device.get("mac", "")
 
         self._attr_unique_id = f"{DOMAIN}_tracker_{self._device_id}"
         self._attr_name = device.get("name", f"Device {self._device_id}")
