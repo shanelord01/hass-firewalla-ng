@@ -5,15 +5,21 @@ import logging
 from dataclasses import dataclass
 from datetime import timedelta
 
+import voluptuous as vol
+
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.exceptions import ConfigEntryNotReady, ServiceValidationError
+from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 
 from .api import FirewallaApiClient
 from .const import (
+    ATTR_ALARM_ID,
+    ATTR_DEVICE_ID,
+    ATTR_RULE_ID,
     CONF_API_TOKEN,
     CONF_ENABLE_ALARMS,
     CONF_ENABLE_FLOWS,
@@ -26,6 +32,10 @@ from .const import (
     DEFAULT_SUBDOMAIN,
     DOMAIN,
     PLATFORMS,
+    SERVICE_DELETE_ALARM,
+    SERVICE_PAUSE_RULE,
+    SERVICE_RENAME_DEVICE,
+    SERVICE_RESUME_RULE,
 )
 from .coordinator import FirewallaCoordinator
 
@@ -80,12 +90,32 @@ async def async_setup_entry(hass: HomeAssistant, entry: FirewallaConfigEntry) ->
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
 
+    # Register services once — they operate across all loaded entries.
+    if not hass.services.has_service(DOMAIN, SERVICE_PAUSE_RULE):
+        _async_register_services(hass)
+
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: FirewallaConfigEntry) -> bool:
     """Unload a config entry."""
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    result = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+
+    # Remove services when the last entry is unloaded.
+    remaining = [
+        e for e in hass.config_entries.async_entries(DOMAIN)
+        if e.entry_id != entry.entry_id
+    ]
+    if result and not remaining:
+        for service in (
+            SERVICE_PAUSE_RULE,
+            SERVICE_RESUME_RULE,
+            SERVICE_DELETE_ALARM,
+            SERVICE_RENAME_DEVICE,
+        ):
+            hass.services.async_remove(DOMAIN, service)
+
+    return result
 
 
 async def _async_update_listener(
@@ -93,6 +123,130 @@ async def _async_update_listener(
 ) -> None:
     """Reload when options change."""
     await hass.config_entries.async_reload(entry.entry_id)
+
+
+def _async_register_services(hass: HomeAssistant) -> None:
+    """Register Firewalla action services (called once for all config entries)."""
+
+    def _get_entries() -> list[FirewallaConfigEntry]:
+        return [
+            entry
+            for entry in hass.config_entries.async_entries(DOMAIN)
+            if hasattr(entry, "runtime_data") and entry.runtime_data is not None
+        ]
+
+    async def _handle_pause_rule(call: ServiceCall) -> None:
+        rule_id: str = call.data[ATTR_RULE_ID]
+        entries = _get_entries()
+        if not entries:
+            raise ServiceValidationError("No Firewalla account is configured.")
+        for entry in entries:
+            data: FirewallaData = entry.runtime_data
+            if await data.client.async_pause_rule(rule_id):
+                await data.coordinator.async_request_refresh()
+                return
+        raise ServiceValidationError(
+            f"Could not pause rule '{rule_id}'. "
+            "Verify the rule ID is correct and belongs to a configured account."
+        )
+
+    async def _handle_resume_rule(call: ServiceCall) -> None:
+        rule_id: str = call.data[ATTR_RULE_ID]
+        entries = _get_entries()
+        if not entries:
+            raise ServiceValidationError("No Firewalla account is configured.")
+        for entry in entries:
+            data: FirewallaData = entry.runtime_data
+            if await data.client.async_resume_rule(rule_id):
+                await data.coordinator.async_request_refresh()
+                return
+        raise ServiceValidationError(
+            f"Could not resume rule '{rule_id}'. "
+            "Verify the rule ID is correct and belongs to a configured account."
+        )
+
+    async def _handle_delete_alarm(call: ServiceCall) -> None:
+        alarm_id: str = call.data[ATTR_ALARM_ID]
+        for entry in _get_entries():
+            data: FirewallaData = entry.runtime_data
+            if not data.coordinator.data:
+                continue
+            alarms = data.coordinator.data.get("alarms", [])
+            alarm = next(
+                (a for a in alarms if isinstance(a, dict) and a.get("id") == alarm_id),
+                None,
+            )
+            if alarm is None:
+                continue
+            gid = str(alarm.get("boxId") or alarm.get("gid") or "")
+            aid = str(alarm.get("aid") or alarm_id)
+            if not gid:
+                raise ServiceValidationError(
+                    f"Cannot determine box GID for alarm '{alarm_id}'."
+                )
+            if await data.client.async_delete_alarm(gid, aid):
+                await data.coordinator.async_request_refresh()
+                return
+            raise ServiceValidationError(f"API rejected deletion of alarm '{alarm_id}'.")
+        raise ServiceValidationError(
+            f"Alarm '{alarm_id}' not found. "
+            "Enable 'Alarm Sensors' in the integration options so alarms are fetched."
+        )
+
+    async def _handle_rename_device(call: ServiceCall) -> None:
+        device_id: str = call.data[ATTR_DEVICE_ID]
+        name: str = call.data["name"]
+        for entry in _get_entries():
+            data: FirewallaData = entry.runtime_data
+            if not data.coordinator.data:
+                continue
+            devices = data.coordinator.data.get("devices", [])
+            device = next(
+                (d for d in devices if isinstance(d, dict) and d.get("id") == device_id),
+                None,
+            )
+            if device is None:
+                continue
+            gid = str(device.get("gid") or device.get("boxId") or "")
+            if not gid:
+                raise ServiceValidationError(
+                    f"Cannot determine box GID for device '{device_id}'."
+                )
+            if await data.client.async_rename_device(gid, device_id, name):
+                await data.coordinator.async_request_refresh()
+                return
+            raise ServiceValidationError(f"API rejected rename of device '{device_id}'.")
+        raise ServiceValidationError(
+            f"Device '{device_id}' not found in coordinator data."
+        )
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_PAUSE_RULE,
+        _handle_pause_rule,
+        schema=vol.Schema({vol.Required(ATTR_RULE_ID): cv.string}),
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_RESUME_RULE,
+        _handle_resume_rule,
+        schema=vol.Schema({vol.Required(ATTR_RULE_ID): cv.string}),
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_DELETE_ALARM,
+        _handle_delete_alarm,
+        schema=vol.Schema({vol.Required(ATTR_ALARM_ID): cv.string}),
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_RENAME_DEVICE,
+        _handle_rename_device,
+        schema=vol.Schema({
+            vol.Required(ATTR_DEVICE_ID): cv.string,
+            vol.Required("name"): vol.All(cv.string, vol.Length(min=1, max=32)),
+        }),
+    )
 
 
 async def _async_cleanup_disabled_entities(
