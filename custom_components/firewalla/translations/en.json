@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Connect to Firewalla MSP",
-        "description": "Enter your Firewalla MSP subdomain (the part before .firewalla.net) and your personal access token.\n\nCreate a token under **Account Settings → Create New Token** in your MSP portal.",
+        "description": "Enter your Firewalla MSP subdomain (the part before .firewalla.net) and your personal access token.\n\nCreate a token under **Account Settings \u2192 Create New Token** in your MSP portal.",
         "data": {
           "subdomain": "MSP Subdomain",
           "api_token": "API Token",
@@ -12,13 +12,15 @@
           "enable_rules": "Enable Rule Sensors",
           "enable_flows": "Enable Traffic Flow Sensors",
           "enable_traffic": "Enable Bandwidth Sensors",
-          "track_devices": "Enable Device Tracker"
+          "track_devices": "Enable Device Tracker",
+          "enable_target_lists": "Enable Target List Sensors"
         },
         "data_description": {
           "subdomain": "e.g. 'mycompany' for mycompany.firewalla.net",
           "scan_interval": "Minimum 30s. Recommended 300s (5 min).",
           "enable_flows": "Creates a sensor for each recent traffic flow. Can generate a large number of entities.",
-          "enable_traffic": "Adds download/upload byte counters per device."
+          "enable_traffic": "Adds download/upload byte counters per device.",
+          "enable_target_lists": "Creates a sensor for each target list showing its entry count and contents."
         }
       },
       "select_boxes": {
@@ -52,13 +54,15 @@
           "enable_traffic": "Enable Bandwidth Sensors",
           "track_devices": "Enable Device Tracker",
           "stale_days": "Stale Device Removal (days)",
-          "box_filter": "Active Boxes"
+          "box_filter": "Active Boxes",
+          "enable_target_lists": "Enable Target List Sensors"
         },
         "data_description": {
           "stale_days": "Devices absent from the API for this many days will be removed from Home Assistant.",
           "enable_flows": "Creates a sensor per recent traffic flow. Can generate many entities.",
           "enable_traffic": "Adds per-device download/upload sensors.",
-          "box_filter": "Select which Firewalla boxes to monitor. All boxes are included by default."
+          "box_filter": "Select which Firewalla boxes to monitor. All boxes are included by default.",
+          "enable_target_lists": "Creates a sensor per target list. Each sensor shows entry count with domains/IPs in attributes."
         }
       }
     }
@@ -122,6 +126,21 @@
       },
       "flow_transfer": {
         "name": "Flow Transfer"
+      },
+      "msp_online_boxes": {
+        "name": "Online Boxes"
+      },
+      "msp_offline_boxes": {
+        "name": "Offline Boxes"
+      },
+      "msp_total_alarms": {
+        "name": "Total Alarms"
+      },
+      "msp_total_rules": {
+        "name": "Total Rules"
+      },
+      "target_list": {
+        "name": "Target List"
       }
     }
   }
