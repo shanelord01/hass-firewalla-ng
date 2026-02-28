@@ -2,7 +2,8 @@
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz)
 
-Monitor one or multiple Firewalla MSP-managed devices from Home Assistant. Built against the [Firewalla MSP API v2](https://docs.firewalla.net/) for Home Assistant 2024.1+.
+Monitor one or multiple Firewalla MSP-managed devices from Home Assistant.
+Built against the [Firewalla MSP API v2](https://docs.firewalla.net/) for Home Assistant 2024.1+.
 
 ---
 
@@ -21,47 +22,125 @@ Monitor one or multiple Firewalla MSP-managed devices from Home Assistant. Built
 | Per-flow traffic sensors | ❌ Off | Options → Flow Sensors |
 | Automatic stale device cleanup | ✅ 30 days | Options → Stale Device Removal |
 
+### Actions (Services)
+
+Call these from automations or Developer Tools → Services:
+
+| Service | Description |
+|---|---|
+| `firewalla.pause_rule` | Pause an active firewall rule |
+| `firewalla.resume_rule` | Resume a paused firewall rule |
+| `firewalla.delete_alarm` | Delete/dismiss an alarm (requires Alarm Sensors enabled) |
+| `firewalla.rename_device` | Rename a network device (requires MSP 2.9+) |
+
 ---
 
 ## Installation
 
-### HACS (Recommended)
+### Option 1 — HACS (Recommended)
 
-1. Open HACS → Integrations → three-dot menu → **Custom repositories**
-2. Add `https://github.com/shanelord01/hass-firewalla-ng` as type **Integration**
-3. Search for **Firewalla** and install
-4. Restart Home Assistant
+HACS gives you one-click installs and automatic update notifications.
 
-### Manual
+**If you don't have HACS yet:**
+1. Follow the [HACS installation guide](https://hacs.xyz/docs/use/download/download/) to install it in Home Assistant.
 
-1. Copy the `custom_components/firewalla` folder into your HA `custom_components` directory
-2. Restart Home Assistant
+**Add this repository to HACS:**
+1. In Home Assistant, go to **HACS** in the sidebar
+2. Click the three-dot menu (⋮) in the top-right corner
+3. Select **Custom repositories**
+4. In the **Repository** field paste:
+   ```
+   https://github.com/shanelord01/hass-firewalla-ng
+   ```
+5. Set **Type** to **Integration** and click **Add**
+6. Search for **Firewalla** in HACS and click **Download**
+7. Restart Home Assistant when prompted
+
+### Option 2 — Manual
+
+1. Download this repository as a ZIP (click **Code → Download ZIP** on GitHub)
+2. Unzip it and copy the `custom_components/firewalla` folder into your Home Assistant
+   `config/custom_components/` directory
+   *(create `custom_components` if it doesn't exist)*
+3. Restart Home Assistant
 
 ---
 
-## Configuration
+## Setup
 
-1. **Settings → Devices & Services → Add Integration → Firewalla**
-2. Enter your **MSP Subdomain** — the part before `.firewalla.net`
-   *(e.g. `mycompany` for `mycompany.firewalla.net`)*
-3. Enter your **API Token** — create one under **Account Settings → Create New Token** in the MSP portal
-4. Adjust optional features as needed
+After installing and restarting:
+
+1. Go to **Settings → Devices & Services**
+2. Click **+ Add Integration** and search for **Firewalla**
+3. Enter your **MSP Subdomain** — the part before `.firewalla.net`
+   *(e.g. enter `mycompany` for `mycompany.firewalla.net`)*
+4. Enter your **API Token**
+   — In the Firewalla MSP portal go to **Account Settings → Create New Token**, give it a name, and copy the token
+5. Choose which optional features to enable (you can change these later)
+6. Click **Submit**
+
+If you have multiple Firewalla boxes, a second screen will let you choose which boxes to monitor.
 
 ---
 
 ## Options
 
-All options are configurable post-install via **Settings → Devices & Services → Firewalla → Configure**:
+All options can be changed after setup via **Settings → Devices & Services → Firewalla → Configure**:
 
-| Option | Description |
-|---|---|
-| Poll Interval | How often to query the API (min 30s, recommended 300s) |
-| Enable Alarm Sensors | Alarm count sensor + per-alarm binary sensors |
-| Enable Rule Sensors | Active/paused binary sensor per firewall rule |
-| Enable Flow Sensors | Per-flow transfer sensor (can create many entities) |
-| Enable Bandwidth Sensors | Download/upload totals per device |
-| Enable Device Tracker | Presence detection via ScannerEntity |
-| Stale Device Removal | Days before absent devices are removed (1–365) |
+| Option | Description | Default |
+|---|---|---|
+| Poll Interval | How often to query the API (seconds) | 300s (5 min) |
+| Enable Alarm Sensors | Alarm count + per-alarm binary sensors | Off |
+| Enable Rule Sensors | Active/paused binary sensor per firewall rule | Off |
+| Enable Flow Sensors | Per-flow transfer sensor (can create many entities) | Off |
+| Enable Bandwidth Sensors | Download/upload totals per device | Off |
+| Enable Device Tracker | Presence detection via ScannerEntity | On |
+| Stale Device Removal | Days before absent devices are removed from HA | 30 |
+
+---
+
+## Using the Actions (Services)
+
+These can be called from automations, scripts, or **Developer Tools → Services**.
+
+### Pause / Resume a Firewall Rule
+
+Find the rule ID in the rule binary sensor's attributes (`rule_id`).
+
+```yaml
+service: firewalla.pause_rule
+data:
+  rule_id: "abc123def456"
+```
+
+```yaml
+service: firewalla.resume_rule
+data:
+  rule_id: "abc123def456"
+```
+
+### Delete an Alarm
+
+Requires **Alarm Sensors** to be enabled in options.
+Find the alarm ID in the alarm binary sensor's attributes (`alarm_id`).
+
+```yaml
+service: firewalla.delete_alarm
+data:
+  alarm_id: "1234"
+```
+
+### Rename a Device
+
+Requires **Firewalla MSP 2.9+**.
+Find the device ID in any device sensor's attributes (`device_id`).
+
+```yaml
+service: firewalla.rename_device
+data:
+  device_id: "aa:bb:cc:dd:ee:ff"
+  name: "My Laptop"
+```
 
 ---
 
@@ -71,13 +150,13 @@ Devices not seen via the API for the configured number of days (default 30)
 are automatically removed from the Home Assistant device registry.
 
 **Protected devices** — those referenced by automations, scenes, or scripts —
-are never removed automatically. HA enforces this via the standard
-`async_remove_config_entry_device` hook. You can still manually delete them via
+are never removed automatically. You can still manually delete them via
 **Settings → Devices & Services → [device] → Delete**.
 
 ---
 
 ## Debug Logging
+
 ```yaml
 # configuration.yaml
 logger:
@@ -93,59 +172,49 @@ logger:
 - Original integration: [blueharford/hass-firewalla](https://github.com/blueharford/hass-firewalla)
 - Refactored: [DaneManes/hass-firewalla](https://github.com/DaneManes/hass-firewalla)
 - Rewritten for HA 2024.1+: [shanelord01/hass-firewalla-ng](https://github.com/shanelord01/hass-firewalla-ng)
-```
+- Services and API fixes: [TechButton/hass-firewalla-ng](https://github.com/TechButton/hass-firewalla-ng)
 
-## v2.x.x - Full rewrite for Home Assistant 2024.1+ / 2026.2+
+---
 
-### What's New v2.1.7
+## Changelog
+
+### v2.2.0
+- Fix flow fetching: API query parameter was `count` instead of `limit` — flows now correctly respect the configured limit
+- Add `firewalla.pause_rule` service — pause an active firewall rule from HA automations
+- Add `firewalla.resume_rule` service — resume a paused firewall rule from HA automations
+- Add `firewalla.delete_alarm` service — dismiss an alarm from HA automations
+- Add `firewalla.rename_device` service — rename a network device from HA automations (MSP 2.9+)
+- Services are available in Developer Tools and work across all configured Firewalla accounts
+
+### v2.1.7
 - Fix orphaned entities for Bandwidth and Device Tracker when disabled
 
-### What's New v2.1.6
+### v2.1.6
 - Fix orphaned entities showing as Unavailable when features are disabled
 
-### What's New v2.1.5
-- Fix circular import preventing the integration from appearing in Settings → Devices & Services → Add Integration after installing v2.1.4.
+### v2.1.5
+- Fix circular import preventing the integration from appearing in Settings → Devices & Services → Add Integration after installing v2.1.4
 
-### What's New v2.1.4
-- Fix box device names duplicating "Firewalla" when the box name returned by the API already contains it (e.g. "Firewalla name Firewalla" → "name Firewalla")
-- Fix rule sensors all displaying as "Active" with no context — now shows the rule action and target (e.g. "Block: youtube.com")
-- Fix alarm sensors all displaying as "Active" with no context — now shows the alarm message (e.g. "Alarm: New device detected on your network")
-- Fix device manufacturer still showing as "Firewalla" in some cases — aligned sensor.py to use macVendor consistent with binary_sensor.py
+### v2.1.4
+- Fix box device names duplicating "Firewalla" when the box name already contains it
+- Fix rule sensors all displaying as "Active" with no context — now shows action and target
+- Fix alarm sensors all displaying as "Active" with no context — now shows alarm message
+- Fix device manufacturer showing as "Firewalla" in some cases
 
-### What's New v2.1.3
-- Fix device manufacturer displaying as "Firewalla" for all network devices — now correctly shows the hardware vendor (e.g. "Apple, Inc.", "Samsung", "Espressif") sourced from the macVendor field returned by the Firewalla MSP API
+### v2.1.3
+- Fix device manufacturer displaying as "Firewalla" for all network devices — now shows hardware vendor
 
-### What's New v2.1.2
+### v2.1.2
 - Fix alarm count sensor unique_id collision when multiple MSP accounts are configured
-- Fix coordinator API failure detection to correctly catch empty responses (not just None)
+- Fix coordinator API failure detection
 
-### What's New v2.1.1
-- Multi-box support — accounts with multiple Firewalla units can now select which boxes to monitor during setup, or change the selection later via Options
+### v2.1.1
+- Multi-box support with per-box filtering during setup and in options
 - Network devices now nest under their parent Firewalla box in the HA device hierarchy
-- Fixed manufacturer showing as "Unknown" for device sensors (now correctly shows vendor name or "Firewalla")
+- Fixed manufacturer showing as "Unknown" for device sensors
 
-### What's New v2.0.4
-- Fix manual device deletion — offline devices can now be removed via the UI
-- Fix entity display names — resolved random and Unavailable labels by correcting translations file path
-
-### What's New v2.0.3
-- Update HACS Description
-- Updated logos as per Home Assistant Brand Standards to deploy in HA 2026.3
-- Show "Firewalla" as the manufacturer rather than "Unknown" for devices
-
-### Breaking Changes
-- Requires Home Assistant 2024.1 or later
-- Remove and re-add the integration after upgrading
-
-### What's New v2.0.0
-- Dedicated `FirewallaCoordinator` class with proper stale device cleanup
-- Automatic removal of devices absent for configurable number of days (default 30)
-- Devices used in automations are never removed automatically
-- `async_remove_config_entry_device` support — manually delete devices from the UI
-- MAC address cached at entity creation so automations survive device going offline
-- Full `icons.json` support for contextual entity icons
-- `strings.json` / `translations/en.json` rewritten with options flow labels and entity translations
-- Config and options flow validation with min/max range on poll interval
-- All entities use `_attr_has_entity_name = True` and `_attr_translation_key` (HA 2024+ naming)
-- API client correctly handles both bare list and envelope response formats from MSP API
-- Graceful fallback to cached data on API failure
+### v2.0.0
+- Full rewrite for Home Assistant 2024.1+
+- Dedicated `FirewallaCoordinator` with stale device cleanup
+- `async_remove_config_entry_device` support
+- Full `icons.json`, `strings.json`, and options flow support
