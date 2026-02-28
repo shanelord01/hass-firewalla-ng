@@ -4,11 +4,12 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from datetime import timedelta
+from typing import Any
 
 import voluptuous as vol
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.exceptions import ConfigEntryNotReady, ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -31,6 +32,8 @@ from .const import (
     PLATFORMS,
     SERVICE_DELETE_ALARM,
     SERVICE_RENAME_DEVICE,
+    SERVICE_SEARCH_ALARMS,
+    SERVICE_SEARCH_FLOWS,
 )
 from .coordinator import FirewallaCoordinator
 
@@ -97,7 +100,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: FirewallaConfigEntry) -
         if e.entry_id != entry.entry_id
     ]
     if result and not remaining:
-        for service in (SERVICE_DELETE_ALARM, SERVICE_RENAME_DEVICE):
+        for service in (SERVICE_DELETE_ALARM, SERVICE_RENAME_DEVICE, SERVICE_SEARCH_ALARMS, SERVICE_SEARCH_FLOWS):
             hass.services.async_remove(DOMAIN, service)
 
     return result
@@ -164,7 +167,7 @@ def _async_register_services(hass: HomeAssistant) -> None:
                 if alarm is None:
                     continue
 
-                gid = str(alarm.get("boxId") or alarm.get("gid") or "")
+                gid = str(alarm.get("gid") or "")
                 aid = str(alarm.get("aid") or alarm_id)
                 if not gid:
                     raise ServiceValidationError(
@@ -272,6 +275,92 @@ def _async_register_services(hass: HomeAssistant) -> None:
                 vol.Required("name"): vol.All(cv.string, vol.Length(min=1, max=32)),
             }
         ),
+    )
+
+    # ------------------------------------------------------------------
+    # Search services — return data to the calling automation
+    # ------------------------------------------------------------------
+
+    async def _handle_search_alarms(call: ServiceCall) -> dict[str, Any]:
+        """Search alarms using Firewalla query syntax.
+
+        Returns a dict with a 'results' key containing the matched alarms so the
+        caller can use response_variable in an automation action.
+
+        Example automation step:
+          action: firewalla.search_alarms
+          data:
+            query: "device.name:Kids_iPad transfer.total:>50MB"
+            limit: 20
+          response_variable: alarm_results
+
+          Then: alarm_results.results contains the list of matching alarms.
+        """
+        query: str = call.data["query"]
+        limit: int = call.data.get("limit", 50)
+
+        # Use any loaded config entry to reach the client
+        entries = hass.config_entries.async_entries(DOMAIN)
+        if not entries:
+            raise ServiceValidationError("No Firewalla integration is configured.")
+
+        client: FirewallaApiClient = entries[0].runtime_data.client
+        results = await client.search_alarms(query=query, limit=limit)
+        return {"results": results, "count": len(results)}
+
+    async def _handle_search_flows(call: ServiceCall) -> dict[str, Any]:
+        """Search flows using Firewalla query syntax.
+
+        Returns a dict with a 'results' key containing the matched flows so the
+        caller can use response_variable in an automation action.
+
+        Example automation step:
+          action: firewalla.search_flows
+          data:
+            query: "device.name:Kids_iPad category:game"
+            limit: 20
+          response_variable: flow_results
+
+          Then: flow_results.results contains the list of matching flows.
+        """
+        query: str = call.data["query"]
+        limit: int = call.data.get("limit", 50)
+
+        entries = hass.config_entries.async_entries(DOMAIN)
+        if not entries:
+            raise ServiceValidationError("No Firewalla integration is configured.")
+
+        client: FirewallaApiClient = entries[0].runtime_data.client
+        results = await client.search_flows(query=query, limit=limit)
+        return {"results": results, "count": len(results)}
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_SEARCH_ALARMS,
+        _handle_search_alarms,
+        schema=vol.Schema(
+            {
+                vol.Required("query"): cv.string,
+                vol.Optional("limit", default=50): vol.All(
+                    vol.Coerce(int), vol.Range(min=1, max=200)
+                ),
+            }
+        ),
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_SEARCH_FLOWS,
+        _handle_search_flows,
+        schema=vol.Schema(
+            {
+                vol.Required("query"): cv.string,
+                vol.Optional("limit", default=50): vol.All(
+                    vol.Coerce(int), vol.Range(min=1, max=200)
+                ),
+            }
+        ),
+        supports_response=SupportsResponse.OPTIONAL,
     )
 
 
