@@ -16,6 +16,7 @@ from .const import (
     CONF_ENABLE_ALARMS,
     CONF_ENABLE_FLOWS,
     CONF_ENABLE_RULES,
+    CONF_ENABLE_TARGET_LISTS,
     CONF_STALE_DAYS,
     DEFAULT_STALE_DAYS,
     DOMAIN,
@@ -77,12 +78,14 @@ class FirewallaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "rules": [],
             "alarms": [],
             "flows": [],
+            "target_lists": [],
         }
 
         optional_fetches = [
             ("rules", CONF_ENABLE_RULES, self._client.get_rules),
             ("alarms", CONF_ENABLE_ALARMS, self._client.get_alarms),
             ("flows", CONF_ENABLE_FLOWS, self._client.get_flows),
+            ("target_lists", CONF_ENABLE_TARGET_LISTS, self._client.get_target_lists),
         ]
 
         for key, flag, func in optional_fetches:
@@ -94,9 +97,19 @@ class FirewallaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     if self.data:
                         results[key] = self.data.get(key, [])
 
+        # Always fetch simple stats — single lightweight call, no toggle needed
+        stats_simple: dict[str, Any] = {}
+        try:
+            stats_simple = await self._client.get_simple_stats()
+        except Exception as exc:  # noqa: BLE001
+            _LOGGER.warning("Could not fetch stats/simple: %s", exc)
+            if self.data:
+                stats_simple = self.data.get("stats_simple", {})
+
         data = {
             "boxes": boxes,
             "devices": devices,
+            "stats_simple": stats_simple,
             **results,
         }
 
