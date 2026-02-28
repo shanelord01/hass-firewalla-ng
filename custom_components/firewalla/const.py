@@ -13,6 +13,7 @@ CONF_ENABLE_ALARMS: Final = "enable_alarms"
 CONF_ENABLE_RULES: Final = "enable_rules"
 CONF_ENABLE_FLOWS: Final = "enable_flows"
 CONF_ENABLE_TRAFFIC: Final = "enable_traffic"
+CONF_ENABLE_TARGET_LISTS: Final = "enable_target_lists"
 CONF_TRACK_DEVICES: Final = "track_devices"
 CONF_STALE_DAYS: Final = "stale_days"
 CONF_BOX_FILTER: Final = "box_filter"
@@ -35,6 +36,8 @@ STORAGE_VERSION: Final = 1
 # Service names
 SERVICE_DELETE_ALARM: Final = "delete_alarm"
 SERVICE_RENAME_DEVICE: Final = "rename_device"
+SERVICE_SEARCH_ALARMS: Final = "search_alarms"
+SERVICE_SEARCH_FLOWS: Final = "search_flows"
 
 # Entity attributes
 ATTR_DEVICE_ID: Final = "device_id"
