@@ -8,6 +8,7 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import FirewallaApiClient
@@ -20,6 +21,8 @@ from .const import (
     CONF_STALE_DAYS,
     DEFAULT_STALE_DAYS,
     DOMAIN,
+    STORAGE_KEY,
+    STORAGE_VERSION,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -49,6 +52,43 @@ class FirewallaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._device_last_seen: dict[str, datetime] = {}
         # Tracks which device ids have been present across all updates
         self._known_device_ids: set[str] = set()
+        # Persistent store — keyed per config entry so multi-account installs don't collide
+        self._store: Store = Store(
+            hass,
+            STORAGE_VERSION,
+            f"{STORAGE_KEY}_{entry.entry_id}",
+        )
+
+    async def async_load_store(self) -> None:
+        """Load persisted device-seen timestamps from disk.
+
+        Called once during async_setup_entry before the first refresh so that
+        stale-device cleanup survives HA restarts. Timestamps older than
+        2 × stale_days are pruned on load to prevent unbounded growth.
+        """
+        stored = await self._store.async_load()
+        if not stored or not isinstance(stored, dict):
+            return
+
+        stale_days = self._opt(CONF_STALE_DAYS, DEFAULT_STALE_DAYS)
+        cutoff = datetime.now() - timedelta(days=stale_days * 2)
+        loaded = 0
+
+        for dev_id, iso_ts in stored.items():
+            try:
+                ts = datetime.fromisoformat(iso_ts)
+            except (ValueError, TypeError):
+                continue
+            if ts < cutoff:
+                # Too old to be useful — discard silently
+                continue
+            self._device_last_seen[dev_id] = ts
+            self._known_device_ids.add(dev_id)
+            loaded += 1
+
+        _LOGGER.debug(
+            "Loaded %d device-seen timestamp(s) from persistent store", loaded
+        )
 
     # ------------------------------------------------------------------
     # Helpers
@@ -116,9 +156,14 @@ class FirewallaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # Update the seen-timestamp for every device in this poll
         now = datetime.now()
         current_ids = {d["id"] for d in devices if isinstance(d, dict) and "id" in d}
+        newly_absent = self._known_device_ids - current_ids  # devices missing this poll
         for dev_id in current_ids:
             self._device_last_seen[dev_id] = now
         self._known_device_ids.update(current_ids)
+
+        # Persist timestamps when devices go absent so stale tracking survives restarts
+        if newly_absent:
+            await self._async_persist_timestamps()
 
         # Stale-device cleanup
         await self._async_remove_stale_devices(current_ids)
@@ -203,3 +248,18 @@ class FirewallaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             )
             self._known_device_ids.discard(dev_id)
             self._device_last_seen.pop(dev_id, None)
+
+    async def _async_persist_timestamps(self) -> None:
+        """Write current device-seen timestamps to persistent storage.
+
+        Only called when a device transitions to absent, keeping disk writes
+        minimal while ensuring stale-day counters survive HA restarts.
+        """
+        payload = {
+            dev_id: ts.isoformat()
+            for dev_id, ts in self._device_last_seen.items()
+        }
+        await self._store.async_save(payload)
+        _LOGGER.debug(
+            "Persisted %d device-seen timestamp(s) to store", len(payload)
+        )
