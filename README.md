@@ -258,6 +258,10 @@ logger:
 
 ## Changelog
 
+### v2.4.2
+- Fix target list sensors always showing 0 entries — Firewalla-owned/system lists (HaGeZi's Pro Blocklist, OISD, Tor, etc.) return an empty `targets` array but populate a separate `count` field. Sensor now uses `count` when present, falling back to `len(targets)` for user-managed lists
+- Fix target list `last_updated` attribute displaying as a raw Unix timestamp number — now converted to ISO 8601 UTC string for human-readable display in the HA UI and history
+
 ### v2.4.1
 - Fix stale device tracking resetting on every HA restart — last-seen timestamps are now persisted to disk via `homeassistant.helpers.storage` and loaded before the first poll, so stale-day counters survive restarts correctly
 - Timestamps are written only when a device transitions from present to absent — no per-poll disk writes
