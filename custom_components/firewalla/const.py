@@ -1,6 +1,14 @@
 """Constants for the Firewalla integration."""
 from typing import Final
 
+
+class FirewallaAuthError(Exception):
+    """Raised when the Firewalla API returns a 401 Unauthorised response.
+
+    Used to distinguish bad credentials (permanent, should surface as
+    ConfigEntryAuthFailed) from transient network errors (should retry).
+    """
+
 DOMAIN: Final = "firewalla"
 BRAND: Final = "Firewalla"
 PLATFORMS: Final = ["sensor", "binary_sensor", "switch", "device_tracker"]
