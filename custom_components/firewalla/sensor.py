@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timezone
 from typing import Any
 
 from homeassistant.components.sensor import (
@@ -495,10 +496,18 @@ class FirewallaTargetListSensor(CoordinatorEntity[FirewallaCoordinator], SensorE
 
     @property
     def native_value(self) -> int | None:
-        """Return the number of entries in the target list."""
+        """Return the number of entries in the target list.
+
+        Firewalla-owned/system lists (e.g. HaGeZi's Pro Blocklist) return an
+        empty `targets` array but populate `count` with the real entry count.
+        User-managed lists may populate `targets` directly. We prefer `count`
+        when present, falling back to len(targets) for lists without it.
+        """
         tl = self._get_tl()
         if tl is None:
             return None
+        if "count" in tl:
+            return tl["count"]
         return len(tl.get("targets", []))
 
     @property
@@ -507,12 +516,26 @@ class FirewallaTargetListSensor(CoordinatorEntity[FirewallaCoordinator], SensorE
         tl = self._get_tl()
         if not tl:
             return {}
+
+        # lastUpdated is a Unix float timestamp — convert to ISO 8601 string
+        # so HA history and the UI display a human-readable date rather than
+        # a raw number (e.g. 1,772,445,412).
+        last_updated_raw = tl.get("lastUpdated")
+        last_updated_iso: str | None = None
+        if last_updated_raw is not None:
+            try:
+                last_updated_iso = datetime.fromtimestamp(
+                    float(last_updated_raw), tz=timezone.utc
+                ).isoformat()
+            except (ValueError, TypeError, OSError):
+                last_updated_iso = str(last_updated_raw)
+
         return {
             "owner": tl.get("owner"),
             "category": tl.get("category"),
             "notes": tl.get("notes"),
             "targets": tl.get("targets", []),
-            "last_updated": tl.get("lastUpdated"),
+            "last_updated": last_updated_iso,
         }
 
     @property
