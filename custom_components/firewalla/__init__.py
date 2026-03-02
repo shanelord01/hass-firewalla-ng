@@ -10,7 +10,7 @@ import voluptuous as vol
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
-from homeassistant.exceptions import ConfigEntryNotReady, ServiceValidationError
+from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady, ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers import device_registry as dr
@@ -29,6 +29,7 @@ from .const import (
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_SUBDOMAIN,
     DOMAIN,
+    FirewallaAuthError,
     PLATFORMS,
     SERVICE_DELETE_ALARM,
     SERVICE_RENAME_DEVICE,
@@ -61,9 +62,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: FirewallaConfigEntry) ->
         subdomain=entry.data.get(CONF_SUBDOMAIN, DEFAULT_SUBDOMAIN),
     )
 
-    if not await client.authenticate():
-        raise ConfigEntryNotReady("Authentication with Firewalla API failed")
-
     scan_interval = entry.options.get(
         CONF_SCAN_INTERVAL,
         entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
@@ -80,7 +78,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: FirewallaConfigEntry) ->
     # counters survive HA restarts.
     await coordinator.async_load_store()
 
-    await coordinator.async_config_entry_first_refresh()
+    # First refresh acts as the implicit auth check — no separate authenticate()
+    # pre-flight is needed, eliminating one redundant GET /boxes call on startup.
+    # FirewallaAuthError (401) propagates out and is caught here as
+    # ConfigEntryAuthFailed so HA flags the entry for re-auth rather than retrying.
+    # All other failures become ConfigEntryNotReady (standard transient handling).
+    try:
+        await coordinator.async_config_entry_first_refresh()
+    except FirewallaAuthError as exc:
+        raise ConfigEntryAuthFailed(
+            f"Invalid Firewalla API token — re-enter your credentials: {exc}"
+        ) from exc
 
     entry.runtime_data = FirewallaData(client=client, coordinator=coordinator)
 
