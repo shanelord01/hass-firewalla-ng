@@ -7,7 +7,7 @@ from typing import Any
 import aiohttp
 import async_timeout
 
-from .const import DEFAULT_API_URL, DEFAULT_TIMEOUT
+from .const import DEFAULT_API_URL, DEFAULT_TIMEOUT, FirewallaAuthError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -72,8 +72,9 @@ class FirewallaApiClient:
                 return None
 
             if response.status == 401:
-                _LOGGER.error("Unauthorised - check API token")
-                return None
+                raise FirewallaAuthError(
+                    f"Unauthorised — check API token (401 from {url})"
+                )
 
             if response.status != 200:
                 body = await response.text()
