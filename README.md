@@ -258,6 +258,9 @@ logger:
 
 ## Changelog
 
+### v2.4.3
+- Fix HTTP 429 Too Many Requests on startup — `authenticate()` was calling `GET /boxes` immediately before the coordinator's first refresh also called `GET /boxes`, hitting the API twice in rapid succession. The pre-flight `authenticate()` call has been removed; the first coordinator refresh now acts as the implicit credential check. A 401 response raises `ConfigEntryAuthFailed` so HA flags the entry for re-auth rather than retrying indefinitely
+
 ### v2.4.2
 - Fix target list sensors always showing 0 entries — Firewalla-owned/system lists (HaGeZi's Pro Blocklist, OISD, Tor, etc.) return an empty `targets` array but populate a separate `count` field. Sensor now uses `count` when present, falling back to `len(targets)` for user-managed lists
 - Fix target list `last_updated` attribute displaying as a raw Unix timestamp number — now converted to ISO 8601 UTC string for human-readable display in the HA UI and history
