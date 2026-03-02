@@ -21,6 +21,7 @@ from .const import (
     CONF_STALE_DAYS,
     DEFAULT_STALE_DAYS,
     DOMAIN,
+    FirewallaAuthError,
     STORAGE_KEY,
     STORAGE_VERSION,
 )
@@ -106,11 +107,14 @@ class FirewallaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Fetch all enabled data from the Firewalla MSP API."""
         try:
             boxes, devices = await self._fetch_core_data()
+        except FirewallaAuthError:
+            # Propagate auth errors directly — they need to surface as
+            # ConfigEntryAuthFailed in async_setup_entry, not be swallowed
+            # as transient failures or masked by cached data.
+            raise
         except Exception as exc:
             if self.data:
-                _LOGGER.warning(
-                    "API error - using cached data: %s", exc
-                )
+                _LOGGER.warning("API error - using cached data: %s", exc)
                 return self.data
             raise UpdateFailed(f"Cannot reach Firewalla API: {exc}") from exc
 
