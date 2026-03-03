@@ -31,6 +31,7 @@ from .const import (
     DEFAULT_STALE_DAYS,
     DEFAULT_SUBDOMAIN,
     DOMAIN,
+    FirewallaAuthError,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -64,11 +65,16 @@ class FirewallaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 # credentials without a separate async_check_credentials() call
                 # that would hit GET /boxes twice in rapid succession.
                 boxes = await client.get_boxes()
+            except FirewallaAuthError:
+                errors["base"] = "invalid_auth"
             except Exception:  # noqa: BLE001
                 _LOGGER.exception("Error during Firewalla credential check")
                 errors["base"] = "cannot_connect"
             else:
-                if boxes is not None:
+                # get_boxes() returns [] on API failure (never None), so check
+                # truthiness — an empty list means either bad credentials or
+                # a genuine account with zero boxes (extremely unlikely).
+                if boxes:
                     self._boxes = boxes
                     self._user_input = user_input
 
