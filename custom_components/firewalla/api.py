@@ -142,23 +142,6 @@ class FirewallaApiClient:
         return result
 
     # ------------------------------------------------------------------
-    # Credential check
-    # ------------------------------------------------------------------
-
-    async def async_check_credentials(self) -> bool:
-        """Return True if the token grants access to the boxes endpoint."""
-        result = await self._api_request("GET", "boxes")
-        if result is not None:
-            _LOGGER.debug("Credential check passed via /boxes")
-            return True
-        _LOGGER.error("Credential check failed")
-        return False
-
-    async def authenticate(self) -> bool:
-        """Alias for async_check_credentials."""
-        return await self.async_check_credentials()
-
-    # ------------------------------------------------------------------
     # Data endpoints
     # ------------------------------------------------------------------
 
