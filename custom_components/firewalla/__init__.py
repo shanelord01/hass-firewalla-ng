@@ -10,7 +10,7 @@ import voluptuous as vol
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
-from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady, ServiceValidationError
+from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers import device_registry as dr
@@ -22,6 +22,7 @@ from .const import (
     CONF_ENABLE_ALARMS,
     CONF_ENABLE_FLOWS,
     CONF_ENABLE_RULES,
+    CONF_ENABLE_TARGET_LISTS,
     CONF_ENABLE_TRAFFIC,
     CONF_SCAN_INTERVAL,
     CONF_SUBDOMAIN,
@@ -29,7 +30,6 @@ from .const import (
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_SUBDOMAIN,
     DOMAIN,
-    FirewallaAuthError,
     PLATFORMS,
     SERVICE_DELETE_ALARM,
     SERVICE_RENAME_DEVICE,
@@ -79,16 +79,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: FirewallaConfigEntry) ->
     await coordinator.async_load_store()
 
     # First refresh acts as the implicit auth check — no separate authenticate()
-    # pre-flight is needed, eliminating one redundant GET /boxes call on startup.
-    # FirewallaAuthError (401) propagates out and is caught here as
-    # ConfigEntryAuthFailed so HA flags the entry for re-auth rather than retrying.
-    # All other failures become ConfigEntryNotReady (standard transient handling).
-    try:
-        await coordinator.async_config_entry_first_refresh()
-    except FirewallaAuthError as exc:
-        raise ConfigEntryAuthFailed(
-            f"Invalid Firewalla API token — re-enter your credentials: {exc}"
-        ) from exc
+    # pre-flight needed. A 401 is translated to ConfigEntryAuthFailed in the
+    # coordinator so HA's first_refresh raises it here automatically, flagging
+    # the entry for re-auth rather than retrying indefinitely.
+    await coordinator.async_config_entry_first_refresh()
 
     entry.runtime_data = FirewallaData(client=client, coordinator=coordinator)
 
@@ -402,6 +396,9 @@ async def _async_cleanup_disabled_entities(
         CONF_TRACK_DEVICES: [
             f"{DOMAIN}_tracker_",
         ],
+        CONF_ENABLE_TARGET_LISTS: [
+            f"{DOMAIN}_target_list_",
+        ],
     }
 
     feature_defaults: dict[str, bool] = {
@@ -410,6 +407,7 @@ async def _async_cleanup_disabled_entities(
         CONF_ENABLE_FLOWS: False,
         CONF_ENABLE_TRAFFIC: False,
         CONF_TRACK_DEVICES: True,
+        CONF_ENABLE_TARGET_LISTS: False,
     }
 
     ent_registry = er.async_get(hass)
