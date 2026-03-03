@@ -35,7 +35,7 @@ Call these from automations, scripts, or **Developer Tools → Actions**:
 | `firewalla.search_flows` | Search network flows by query and return results to an automation via `response_variable` |
 
 Firewall rules are paused and resumed using the native `switch.turn_off` / `switch.turn_on`
-services targeting the rule's switch entity — no custom service required.
+services targeting the rule’s switch entity — no custom service required.
 
 ---
 
@@ -45,7 +45,7 @@ services targeting the rule's switch entity — no custom service required.
 
 HACS gives you one-click installs and automatic update notifications.
 
-**If you don't have HACS yet:**
+**If you don’t have HACS yet:**
 1. Follow the [HACS installation guide](https://hacs.xyz/docs/use/download/download/) to install it in Home Assistant.
 
 **Add this repository to HACS:**
@@ -65,7 +65,7 @@ HACS gives you one-click installs and automatic update notifications.
 1. Download this repository as a ZIP (click **Code → Download ZIP** on GitHub)
 2. Unzip it and copy the `custom_components/firewalla` folder into your Home Assistant
    `config/custom_components/` directory
-   *(create `custom_components` if it doesn't exist)*
+   *(create `custom_components` if it doesn’t exist)*
 3. Restart Home Assistant
 
 ---
@@ -130,7 +130,7 @@ You can find the exact entity ID in **Settings → Devices & Services → [your 
 Requires **Alarm Sensors** to be enabled in options.
 
 In **Developer Tools → Actions**, select `Firewalla: Delete Alarm` and use the entity picker
-to choose the alarm's binary sensor — no need to find internal IDs.
+to choose the alarm’s binary sensor — no need to find internal IDs.
 
 In automations or scripts:
 
@@ -264,18 +264,24 @@ logger:
 - Fix `firewalla.delete_alarm` service always raising "API rejected deletion" even on success — REST DELETE endpoints return 204 No Content, but the API client only treated HTTP 200 as success. Now 201 and 204 are also treated as success responses. Same fix applies to `async_pause_rule` and `async_resume_rule` (POST endpoints that also return 204)
 - Fix `FirewallaAuthError` (401 response) being swallowed by a broad `except Exception` in `_api_request_raw`, meaning invalid tokens were never surfaced as HA re-auth notifications — now re-raised explicitly before the broad catch clause
 - Fix `FirewallaAuthError` not propagating through `async_config_entry_first_refresh` — HA's coordinator only special-cases `ConfigEntryAuthFailed`, not arbitrary exception subclasses. Auth errors are now translated to `ConfigEntryAuthFailed` in the coordinator before propagating, triggering HA's re-auth notification correctly
+- Fix config flow showing "cannot_connect" instead of "invalid_auth" on bad credentials — `FirewallaAuthError` from a 401 was caught by the generic `except Exception` clause. Now caught explicitly and mapped to the correct error key
+- Fix config flow accepting empty box list as valid credentials — `get_boxes()` always returns a list (never `None`), so the `is not None` check always passed. Now checks truthiness so an empty result correctly triggers `invalid_auth`
 - Fix response body reads (`.text()`, `.json()`) happening outside the `async_timeout` context — a server that accepts the connection but stalls sending the body could hang the HA event loop indefinitely. All body reads are now inside the timeout context
 - Fix stale device removal logging "Removing stale device" on every poll after HA restart — removed device timestamps were not being cleaned from persistent storage, so they reloaded on restart and triggered repeated (harmless but noisy) removal attempts. Storage is now persisted after removal
 - Fix target list sensor entities being orphaned when `Enable Target List Sensors` is disabled in options — `firewalla_target_list_*` entities were missing from the disabled-entity cleanup function
 - Fix MSP summary sensor unique_id collision on multi-account installs — `firewalla_msp_onlineBoxes` and similar unique_ids were not scoped to the config entry, so the second account's MSP sensors would be silently rejected by HA. Now scoped with `entry_id`
+- Fix device tracker platform failing to load — `_box_display_name` was renamed to `box_display_name` in `helpers.py` but the import in `device_tracker.py` was not updated, causing an `ImportError` on startup
 - Fix `_first_box_id()` fallback using `[{}]` as default (always-truthy list containing an empty dict) instead of `[]` — now correctly returns `"unknown"` when no boxes are present
+- Fix `datetime.now()` (naive/local) usage in coordinator — replaced with `dt_util.now()` from `homeassistant.util.dt` to match HA conventions and avoid future tz-aware comparison errors. Stored timestamps loaded from older versions are automatically upgraded to tz-aware on load
+- Fix `search_alarms` and `search_flows` services always querying only the first configured MSP account — now iterates all loaded config entries and aggregates results across accounts
+- Remove unused `async_check_credentials()` and `authenticate()` methods from `FirewallaApiClient` — both are dead code after the config flow and setup entry changes
 - Remove unused `COORDINATOR` and `API_CLIENT` legacy constants from `const.py`
-- Rename `_box_display_name()` to `box_display_name()` in `helpers.py` — leading underscore implied private but the function is used across three modules
+- Rename `_box_display_name()` to `box_display_name()` in `helpers.py` — leading underscore implied private but the function is used across four modules
 - Reuse `FirewallaMspBaseSensor._MSP_DEVICE_INFO` in `FirewallaTargetListSensor` instead of duplicating the DeviceInfo inline
 - Add missing MSP sensor and target list icon entries to `icons.json`
 
 ### v2.4.2
-- Fix target list sensors always showing 0 entries — Firewalla-owned/system lists (HaGeZi's Pro Blocklist, OISD, Tor, etc.) return an empty `targets` array but populate a separate `count` field. Sensor now uses `count` when present, falling back to `len(targets)` for user-managed lists
+- Fix target list sensors always showing 0 entries — Firewalla-owned/system lists (HaGeZi’s Pro Blocklist, OISD, Tor, etc.) return an empty `targets` array but populate a separate `count` field. Sensor now uses `count` when present, falling back to `len(targets)` for user-managed lists
 - Fix target list `last_updated` attribute displaying as a raw Unix timestamp number — now converted to ISO 8601 UTC string for human-readable display in the HA UI and history
 
 ### v2.4.1
