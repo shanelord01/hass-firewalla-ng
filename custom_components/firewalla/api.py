@@ -62,36 +62,53 @@ class FirewallaApiClient:
                     method, url, headers=self._headers, params=params, json=json
                 )
 
-            content_type = response.headers.get("Content-Type", "")
-            if "text/html" in content_type:
-                body = await response.text()
-                _LOGGER.error(
-                    "Received HTML response from %s (likely auth failure): %.200s",
-                    url, body,
-                )
-                return None
+                # All response reads (headers, status, body) are intentionally
+                # inside the async_timeout context so a stalled response body
+                # cannot hang the HA event loop indefinitely.
 
-            if response.status == 401:
-                raise FirewallaAuthError(
-                    f"Unauthorised — check API token (401 from {url})"
-                )
+                content_type = response.headers.get("Content-Type", "")
+                if "text/html" in content_type:
+                    body = await response.text()
+                    _LOGGER.error(
+                        "Received HTML response from %s (likely auth failure): %.200s",
+                        url, body,
+                    )
+                    return None
 
-            if response.status != 200:
-                body = await response.text()
-                _LOGGER.error("HTTP %s from %s: %.200s", response.status, url, body)
-                return None
+                if response.status == 401:
+                    # Raise directly — NOT caught by the broad except below because
+                    # FirewallaAuthError is re-raised explicitly before that clause.
+                    raise FirewallaAuthError(
+                        f"Unauthorised — check API token (401 from {url})"
+                    )
 
-            try:
-                result = await response.json(content_type=None)
-            except (aiohttp.ContentTypeError, ValueError) as exc:
-                body = await response.text()
-                if not body.strip():
+                # 201 Created and 204 No Content are both success responses.
+                # Action endpoints (DELETE alarm, POST pause/resume rule) return
+                # 204 on success with no body. Treat as success and return {}.
+                if response.status == 204:
                     return {}
-                _LOGGER.error("Invalid JSON from %s: %s - %.200s", url, exc, body)
-                return None
 
-            return result
+                if response.status not in (200, 201):
+                    body = await response.text()
+                    _LOGGER.error("HTTP %s from %s: %.200s", response.status, url, body)
+                    return None
 
+                try:
+                    result = await response.json(content_type=None)
+                except (aiohttp.ContentTypeError, ValueError) as exc:
+                    body = await response.text()
+                    if not body.strip():
+                        return {}
+                    _LOGGER.error("Invalid JSON from %s: %s - %.200s", url, exc, body)
+                    return None
+
+                return result
+
+        except FirewallaAuthError:
+            # Must be re-raised explicitly so it propagates to the coordinator
+            # and eventually surfaces as ConfigEntryAuthFailed in HA. Without
+            # this, the broad 'except Exception' below would swallow it.
+            raise
         except asyncio.TimeoutError:
             _LOGGER.error("Timeout calling %s", url)
             return None
