@@ -1,7 +1,7 @@
 """Firewalla MSP API Client."""
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import aiohttp
@@ -172,7 +172,7 @@ class FirewallaApiClient:
             _LOGGER.warning("get_devices: unexpected response type %s", type(raw))
             return []
 
-        now_ms = datetime.now().timestamp() * 1000
+        now_ms = datetime.now(tz=timezone.utc).timestamp() * 1000
         devices: list[dict[str, Any]] = []
         for i, dev in enumerate(raw):
             if not isinstance(dev, dict):
