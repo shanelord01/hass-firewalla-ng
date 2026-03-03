@@ -13,7 +13,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import CONF_TRACK_DEVICES, DOMAIN
 from .coordinator import FirewallaCoordinator
-from .helpers import _box_display_name
+from .helpers import box_display_name
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -74,7 +74,7 @@ class FirewallaDeviceTracker(CoordinatorEntity[FirewallaCoordinator], ScannerEnt
 
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"box_{box_id}")},
-            name=_box_display_name(parent_box) if parent_box else "Firewalla",
+            name=box_display_name(parent_box) if parent_box else "Firewalla",
             manufacturer="Firewalla",
         )
 
