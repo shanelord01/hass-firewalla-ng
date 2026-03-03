@@ -24,13 +24,13 @@
         }
       },
       "select_boxes": {
-        "title": "Selecionar dispositivos",
-        "description": "Escolha quais dispositivos Firewalla monitorar no Home Assistant. Todos os dispositivos são selecionados por padrão.",
+        "title": "Selecionar Boxes",
+        "description": "Escolha quais Firewalla Boxes monitorar no Home Assistant. Todos os Boxes são selecionados por padrão.",
         "data": {
-          "box_filter": "Dispositivos a monitorar"
+          "box_filter": "Boxes a monitorar"
         },
         "data_description": {
-          "box_filter": "Desmarque os dispositivos que você não deseja que apareçam no Home Assistant."
+          "box_filter": "Desmarque os Boxes que você não deseja que apareçam no Home Assistant."
         }
       }
     },
@@ -54,14 +54,14 @@
           "enable_traffic": "Ativar sensores de largura de banda",
           "track_devices": "Ativar rastreamento de dispositivos",
           "stale_days": "Remoção de dispositivos inativos (dias)",
-          "box_filter": "Dispositivos ativos",
+          "box_filter": "Boxes ativos",
           "enable_target_lists": "Ativar sensores de listas de destino"
         },
         "data_description": {
           "stale_days": "Dispositivos ausentes da API por este número de dias serão removidos do Home Assistant.",
           "enable_flows": "Cria um sensor por fluxo de tráfego recente. Pode gerar muitas entidades.",
           "enable_traffic": "Adiciona sensores de download/upload por dispositivo.",
-          "box_filter": "Selecione quais dispositivos Firewalla monitorar. Todos estão incluídos por padrão.",
+          "box_filter": "Selecione quais Firewalla Boxes monitorar. Todos estão incluídos por padrão.",
           "enable_target_lists": "Cria um sensor por lista de destino. Cada sensor mostra a contagem de entradas com domínios/IPs em atributos."
         }
       }
@@ -128,10 +128,10 @@
         "name": "Transferência de fluxo"
       },
       "msp_online_boxes": {
-        "name": "Dispositivos online"
+        "name": "Boxes online"
       },
       "msp_offline_boxes": {
-        "name": "Dispositivos offline"
+        "name": "Boxes offline"
       },
       "msp_total_alarms": {
         "name": "Total de alarmes"
