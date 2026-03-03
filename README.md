@@ -259,7 +259,20 @@ logger:
 ## Changelog
 
 ### v2.4.3
-- Fix HTTP 429 Too Many Requests on startup — `authenticate()` was calling `GET /boxes` immediately before the coordinator's first refresh also called `GET /boxes`, hitting the API twice in rapid succession. The pre-flight `authenticate()` call has been removed; the first coordinator refresh now acts as the implicit credential check. A 401 response raises `ConfigEntryAuthFailed` so HA flags the entry for re-auth rather than retrying indefinitely
+- Fix HTTP 429 Too Many Requests on startup — the config flow was calling `async_check_credentials()` (GET /boxes) and then immediately `get_boxes()` (GET /boxes again) to populate the box-selection step. Replaced with a single `get_boxes()` call that serves both purposes
+- Fix HTTP 429 at runtime — `authenticate()` was calling GET /boxes immediately before the coordinator's first refresh also called GET /boxes. The separate pre-flight authenticate call has been removed; the first coordinator refresh now acts as the implicit credential check
+- Fix `firewalla.delete_alarm` service always raising "API rejected deletion" even on success — REST DELETE endpoints return 204 No Content, but the API client only treated HTTP 200 as success. Now 201 and 204 are also treated as success responses. Same fix applies to `async_pause_rule` and `async_resume_rule` (POST endpoints that also return 204)
+- Fix `FirewallaAuthError` (401 response) being swallowed by a broad `except Exception` in `_api_request_raw`, meaning invalid tokens were never surfaced as HA re-auth notifications — now re-raised explicitly before the broad catch clause
+- Fix `FirewallaAuthError` not propagating through `async_config_entry_first_refresh` — HA's coordinator only special-cases `ConfigEntryAuthFailed`, not arbitrary exception subclasses. Auth errors are now translated to `ConfigEntryAuthFailed` in the coordinator before propagating, triggering HA's re-auth notification correctly
+- Fix response body reads (`.text()`, `.json()`) happening outside the `async_timeout` context — a server that accepts the connection but stalls sending the body could hang the HA event loop indefinitely. All body reads are now inside the timeout context
+- Fix stale device removal logging "Removing stale device" on every poll after HA restart — removed device timestamps were not being cleaned from persistent storage, so they reloaded on restart and triggered repeated (harmless but noisy) removal attempts. Storage is now persisted after removal
+- Fix target list sensor entities being orphaned when `Enable Target List Sensors` is disabled in options — `firewalla_target_list_*` entities were missing from the disabled-entity cleanup function
+- Fix MSP summary sensor unique_id collision on multi-account installs — `firewalla_msp_onlineBoxes` and similar unique_ids were not scoped to the config entry, so the second account's MSP sensors would be silently rejected by HA. Now scoped with `entry_id`
+- Fix `_first_box_id()` fallback using `[{}]` as default (always-truthy list containing an empty dict) instead of `[]` — now correctly returns `"unknown"` when no boxes are present
+- Remove unused `COORDINATOR` and `API_CLIENT` legacy constants from `const.py`
+- Rename `_box_display_name()` to `box_display_name()` in `helpers.py` — leading underscore implied private but the function is used across three modules
+- Reuse `FirewallaMspBaseSensor._MSP_DEVICE_INFO` in `FirewallaTargetListSensor` instead of duplicating the DeviceInfo inline
+- Add missing MSP sensor and target list icon entries to `icons.json`
 
 ### v2.4.2
 - Fix target list sensors always showing 0 entries — Firewalla-owned/system lists (HaGeZi's Pro Blocklist, OISD, Tor, etc.) return an empty `targets` array but populate a separate `count` field. Sensor now uses `count` when present, falling back to `len(targets)` for user-managed lists
