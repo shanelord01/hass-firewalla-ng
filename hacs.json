@@ -5,5 +5,5 @@
   "iot_class": "cloud_polling",
   "render_readme": true,
   "documentation": "https://github.com/shanelord01/hass-firewalla-ng",
-  "homeassistant": "2024.1.0"
+  "homeassistant": "2024.4.0"
 }
