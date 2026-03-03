@@ -1,0 +1,147 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Mit Firewalla MSP verbinden",
+        "description": "Gib deine Firewalla MSP-Subdomain (der Teil vor .firewalla.net) und dein persönliches Zugriffstoken ein.\n\nErstelle ein Token unter **Kontoeinstellungen → Neues Token erstellen** in deinem MSP-Portal.",
+        "data": {
+          "subdomain": "MSP-Subdomain",
+          "api_token": "API-Token",
+          "scan_interval": "Abfrageintervall (Sekunden)",
+          "enable_alarms": "Alarmsensoren aktivieren",
+          "enable_rules": "Regelsensoren aktivieren",
+          "enable_flows": "Datenfluss-Sensoren aktivieren",
+          "enable_traffic": "Bandbreitensensoren aktivieren",
+          "track_devices": "Geräteverfolgung aktivieren",
+          "enable_target_lists": "Ziellisten-Sensoren aktivieren"
+        },
+        "data_description": {
+          "subdomain": "z. B. 'meinefirma' für meinefirma.firewalla.net",
+          "scan_interval": "Minimum 30s. Empfohlen 300s (5 Min.).",
+          "enable_flows": "Erstellt einen Sensor für jeden aktuellen Datenfluss. Kann eine große Anzahl von Entitäten erzeugen.",
+          "enable_traffic": "Fügt Download-/Upload-Zähler pro Gerät hinzu.",
+          "enable_target_lists": "Erstellt einen Sensor pro Zielliste mit Anzahl der Einträge und Inhalten."
+        }
+      },
+      "select_boxes": {
+        "title": "Boxen auswählen",
+        "description": "Wähle aus, welche Firewalla-Boxen in Home Assistant überwacht werden sollen. Standardmäßig sind alle Boxen ausgewählt.",
+        "data": {
+          "box_filter": "Zu überwachende Boxen"
+        },
+        "data_description": {
+          "box_filter": "Deaktiviere alle Boxen, die nicht in Home Assistant erscheinen sollen."
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Authentifizierung fehlgeschlagen – überprüfe Subdomain und API-Token.",
+      "cannot_connect": "Firewalla-API nicht erreichbar. Überprüfe Netzwerk und Subdomain."
+    },
+    "abort": {
+      "already_configured": "Dieses Firewalla MSP-Konto ist bereits konfiguriert."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Firewalla-Optionen",
+        "data": {
+          "scan_interval": "Abfrageintervall (Sekunden)",
+          "enable_alarms": "Alarmsensoren aktivieren",
+          "enable_rules": "Regelsensoren aktivieren",
+          "enable_flows": "Datenfluss-Sensoren aktivieren",
+          "enable_traffic": "Bandbreitensensoren aktivieren",
+          "track_devices": "Geräteverfolgung aktivieren",
+          "stale_days": "Veraltete Geräte entfernen (Tage)",
+          "box_filter": "Aktive Boxen",
+          "enable_target_lists": "Ziellisten-Sensoren aktivieren"
+        },
+        "data_description": {
+          "stale_days": "Geräte, die so viele Tage nicht von der API gemeldet werden, werden aus Home Assistant entfernt.",
+          "enable_flows": "Erstellt einen Sensor pro aktuellem Datenfluss. Kann viele Entitäten erzeugen.",
+          "enable_traffic": "Fügt Download-/Upload-Sensoren pro Gerät hinzu.",
+          "box_filter": "Wähle aus, welche Firewalla-Boxen überwacht werden sollen. Standardmäßig sind alle Boxen enthalten.",
+          "enable_target_lists": "Erstellt einen Sensor pro Zielliste. Jeder Sensor zeigt die Anzahl der Einträge mit Domains/IPs in Attributen."
+        }
+      }
+    }
+  },
+  "entity": {
+    "switch": {
+      "rule_switch": {
+        "name": "Regel",
+        "state": {
+          "on": "Aktiv",
+          "off": "Pausiert"
+        }
+      }
+    },
+    "binary_sensor": {
+      "box_online": {
+        "name": "Online",
+        "state": {
+          "on": "Online",
+          "off": "Offline"
+        }
+      },
+      "device_online": {
+        "name": "Online",
+        "state": {
+          "on": "Online",
+          "off": "Offline"
+        }
+      },
+      "rule_active": {
+        "state": {
+          "on": "Aktiv",
+          "off": "Pausiert"
+        }
+      },
+      "alarm_active": {
+        "state": {
+          "on": "Aktiv",
+          "off": "Gelöscht"
+        }
+      }
+    },
+    "sensor": {
+      "ip_address": {
+        "name": "IP-Adresse"
+      },
+      "mac_address": {
+        "name": "MAC-Adresse"
+      },
+      "network_name": {
+        "name": "Netzwerk"
+      },
+      "total_download": {
+        "name": "Download gesamt"
+      },
+      "total_upload": {
+        "name": "Upload gesamt"
+      },
+      "alarm_count": {
+        "name": "Aktive Alarme"
+      },
+      "flow_transfer": {
+        "name": "Datenfluss-Transfer"
+      },
+      "msp_online_boxes": {
+        "name": "Boxen online"
+      },
+      "msp_offline_boxes": {
+        "name": "Boxen offline"
+      },
+      "msp_total_alarms": {
+        "name": "Alarme gesamt"
+      },
+      "msp_total_rules": {
+        "name": "Regeln gesamt"
+      },
+      "target_list": {
+        "name": "Zielliste"
+      }
+    }
+  }
+}

@@ -1,0 +1,147 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Conectar con Firewalla MSP",
+        "description": "Introduce tu subdominio de Firewalla MSP (la parte antes de .firewalla.net) y tu token de acceso personal.\n\nCrea un token en **Configuración de cuenta → Crear nuevo token** en tu portal MSP.",
+        "data": {
+          "subdomain": "Subdominio MSP",
+          "api_token": "Token API",
+          "scan_interval": "Intervalo de consulta (segundos)",
+          "enable_alarms": "Activar sensores de alarma",
+          "enable_rules": "Activar sensores de reglas",
+          "enable_flows": "Activar sensores de flujo de tráfico",
+          "enable_traffic": "Activar sensores de ancho de banda",
+          "track_devices": "Activar seguimiento de dispositivos",
+          "enable_target_lists": "Activar sensores de listas de destino"
+        },
+        "data_description": {
+          "subdomain": "p. ej. 'miempresa' para miempresa.firewalla.net",
+          "scan_interval": "Mínimo 30s. Recomendado 300s (5 min).",
+          "enable_flows": "Crea un sensor para cada flujo de tráfico reciente. Puede generar un gran número de entidades.",
+          "enable_traffic": "Añade contadores de descarga/subida por dispositivo.",
+          "enable_target_lists": "Crea un sensor por lista de destino mostrando el recuento de entradas y su contenido."
+        }
+      },
+      "select_boxes": {
+        "title": "Seleccionar dispositivos",
+        "description": "Elige qué dispositivos Firewalla supervisar en Home Assistant. Todos los dispositivos están seleccionados por defecto.",
+        "data": {
+          "box_filter": "Dispositivos a supervisar"
+        },
+        "data_description": {
+          "box_filter": "Desmarca los dispositivos que no deseas que aparezcan en Home Assistant."
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Error de autenticación – comprueba tu subdominio y token API.",
+      "cannot_connect": "No se puede conectar con la API de Firewalla. Comprueba tu red y subdominio."
+    },
+    "abort": {
+      "already_configured": "Esta cuenta de Firewalla MSP ya está configurada."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opciones de Firewalla",
+        "data": {
+          "scan_interval": "Intervalo de consulta (segundos)",
+          "enable_alarms": "Activar sensores de alarma",
+          "enable_rules": "Activar sensores de reglas",
+          "enable_flows": "Activar sensores de flujo de tráfico",
+          "enable_traffic": "Activar sensores de ancho de banda",
+          "track_devices": "Activar seguimiento de dispositivos",
+          "stale_days": "Eliminación de dispositivos inactivos (días)",
+          "box_filter": "Dispositivos activos",
+          "enable_target_lists": "Activar sensores de listas de destino"
+        },
+        "data_description": {
+          "stale_days": "Los dispositivos ausentes de la API durante este número de días se eliminarán de Home Assistant.",
+          "enable_flows": "Crea un sensor por flujo de tráfico reciente. Puede generar muchas entidades.",
+          "enable_traffic": "Añade sensores de descarga/subida por dispositivo.",
+          "box_filter": "Selecciona qué dispositivos Firewalla supervisar. Todos están incluidos por defecto.",
+          "enable_target_lists": "Crea un sensor por lista de destino. Cada sensor muestra el recuento de entradas con dominios/IPs en atributos."
+        }
+      }
+    }
+  },
+  "entity": {
+    "switch": {
+      "rule_switch": {
+        "name": "Regla",
+        "state": {
+          "on": "Activa",
+          "off": "Pausada"
+        }
+      }
+    },
+    "binary_sensor": {
+      "box_online": {
+        "name": "En línea",
+        "state": {
+          "on": "En línea",
+          "off": "Fuera de línea"
+        }
+      },
+      "device_online": {
+        "name": "En línea",
+        "state": {
+          "on": "En línea",
+          "off": "Fuera de línea"
+        }
+      },
+      "rule_active": {
+        "state": {
+          "on": "Activa",
+          "off": "Pausada"
+        }
+      },
+      "alarm_active": {
+        "state": {
+          "on": "Activa",
+          "off": "Resuelta"
+        }
+      }
+    },
+    "sensor": {
+      "ip_address": {
+        "name": "Dirección IP"
+      },
+      "mac_address": {
+        "name": "Dirección MAC"
+      },
+      "network_name": {
+        "name": "Red"
+      },
+      "total_download": {
+        "name": "Descarga total"
+      },
+      "total_upload": {
+        "name": "Subida total"
+      },
+      "alarm_count": {
+        "name": "Alarmas activas"
+      },
+      "flow_transfer": {
+        "name": "Transferencia de flujo"
+      },
+      "msp_online_boxes": {
+        "name": "Dispositivos en línea"
+      },
+      "msp_offline_boxes": {
+        "name": "Dispositivos fuera de línea"
+      },
+      "msp_total_alarms": {
+        "name": "Total de alarmas"
+      },
+      "msp_total_rules": {
+        "name": "Total de reglas"
+      },
+      "target_list": {
+        "name": "Lista de destino"
+      }
+    }
+  }
+}

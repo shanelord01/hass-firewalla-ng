@@ -1,0 +1,147 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "连接到 Firewalla MSP",
+        "description": "输入您的 Firewalla MSP 子域名（.firewalla.net 前面的部分）和个人访问令牌。\n\n在 MSP 门户的 **账户设置 → 创建新令牌** 中创建令牌。",
+        "data": {
+          "subdomain": "MSP 子域名",
+          "api_token": "API 令牌",
+          "scan_interval": "轮询间隔（秒）",
+          "enable_alarms": "启用告警传感器",
+          "enable_rules": "启用规则传感器",
+          "enable_flows": "启用流量传感器",
+          "enable_traffic": "启用带宽传感器",
+          "track_devices": "启用设备追踪",
+          "enable_target_lists": "启用目标列表传感器"
+        },
+        "data_description": {
+          "subdomain": "例如输入 'mycompany' 对应 mycompany.firewalla.net",
+          "scan_interval": "最短 30 秒，建议 300 秒（5 分钟）。",
+          "enable_flows": "为每个近期流量创建一个传感器。可能会生成大量实体。",
+          "enable_traffic": "为每个设备添加下载/上传计数器。",
+          "enable_target_lists": "为每个目标列表创建一个传感器，显示条目数量和内容。"
+        }
+      },
+      "select_boxes": {
+        "title": "选择设备",
+        "description": "选择要在 Home Assistant 中监控的 Firewalla 设备。默认选择所有设备。",
+        "data": {
+          "box_filter": "要监控的设备"
+        },
+        "data_description": {
+          "box_filter": "取消选择不想在 Home Assistant 中显示的设备。"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "认证失败 - 请检查子域名和 API 令牌。",
+      "cannot_connect": "无法连接到 Firewalla API。请检查网络和子域名。"
+    },
+    "abort": {
+      "already_configured": "此 Firewalla MSP 账户已配置。"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Firewalla 选项",
+        "data": {
+          "scan_interval": "轮询间隔（秒）",
+          "enable_alarms": "启用告警传感器",
+          "enable_rules": "启用规则传感器",
+          "enable_flows": "启用流量传感器",
+          "enable_traffic": "启用带宽传感器",
+          "track_devices": "启用设备追踪",
+          "stale_days": "移除过期设备（天）",
+          "box_filter": "活跃设备",
+          "enable_target_lists": "启用目标列表传感器"
+        },
+        "data_description": {
+          "stale_days": "API 中缺失超过此天数的设备将从 Home Assistant 中移除。",
+          "enable_flows": "为每个近期流量创建一个传感器。可能会生成大量实体。",
+          "enable_traffic": "为每个设备添加下载/上传传感器。",
+          "box_filter": "选择要监控的 Firewalla 设备。默认包含所有设备。",
+          "enable_target_lists": "为每个目标列表创建一个传感器。每个传感器在属性中显示条目数量及域名/IP。"
+        }
+      }
+    }
+  },
+  "entity": {
+    "switch": {
+      "rule_switch": {
+        "name": "规则",
+        "state": {
+          "on": "启用",
+          "off": "暂停"
+        }
+      }
+    },
+    "binary_sensor": {
+      "box_online": {
+        "name": "在线状态",
+        "state": {
+          "on": "在线",
+          "off": "离线"
+        }
+      },
+      "device_online": {
+        "name": "在线状态",
+        "state": {
+          "on": "在线",
+          "off": "离线"
+        }
+      },
+      "rule_active": {
+        "state": {
+          "on": "启用",
+          "off": "暂停"
+        }
+      },
+      "alarm_active": {
+        "state": {
+          "on": "活跃",
+          "off": "已清除"
+        }
+      }
+    },
+    "sensor": {
+      "ip_address": {
+        "name": "IP 地址"
+      },
+      "mac_address": {
+        "name": "MAC 地址"
+      },
+      "network_name": {
+        "name": "网络"
+      },
+      "total_download": {
+        "name": "总下载量"
+      },
+      "total_upload": {
+        "name": "总上传量"
+      },
+      "alarm_count": {
+        "name": "活跃告警"
+      },
+      "flow_transfer": {
+        "name": "流量传输"
+      },
+      "msp_online_boxes": {
+        "name": "在线设备数"
+      },
+      "msp_offline_boxes": {
+        "name": "离线设备数"
+      },
+      "msp_total_alarms": {
+        "name": "告警总数"
+      },
+      "msp_total_rules": {
+        "name": "规则总数"
+      },
+      "target_list": {
+        "name": "目标列表"
+      }
+    }
+  }
+}

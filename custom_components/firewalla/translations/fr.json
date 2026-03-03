@@ -1,0 +1,147 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connexion à Firewalla MSP",
+        "description": "Entrez votre sous-domaine Firewalla MSP (la partie avant .firewalla.net) et votre jeton d'accès personnel.\n\nCréez un jeton dans **Paramètres du compte → Créer un nouveau jeton** dans votre portail MSP.",
+        "data": {
+          "subdomain": "Sous-domaine MSP",
+          "api_token": "Jeton API",
+          "scan_interval": "Intervalle d'interrogation (secondes)",
+          "enable_alarms": "Activer les capteurs d'alarme",
+          "enable_rules": "Activer les capteurs de règles",
+          "enable_flows": "Activer les capteurs de flux réseau",
+          "enable_traffic": "Activer les capteurs de bande passante",
+          "track_devices": "Activer le suivi des appareils",
+          "enable_target_lists": "Activer les capteurs de listes cibles"
+        },
+        "data_description": {
+          "subdomain": "p. ex. 'monentreprise' pour monentreprise.firewalla.net",
+          "scan_interval": "Minimum 30s. Recommandé 300s (5 min).",
+          "enable_flows": "Crée un capteur pour chaque flux réseau récent. Peut générer un grand nombre d'entités.",
+          "enable_traffic": "Ajoute des compteurs de téléchargement/envoi par appareil.",
+          "enable_target_lists": "Crée un capteur par liste cible affichant le nombre d'entrées et le contenu."
+        }
+      },
+      "select_boxes": {
+        "title": "Sélectionner les boîtiers",
+        "description": "Choisissez les boîtiers Firewalla à surveiller dans Home Assistant. Tous les boîtiers sont sélectionnés par défaut.",
+        "data": {
+          "box_filter": "Boîtiers à surveiller"
+        },
+        "data_description": {
+          "box_filter": "Désélectionnez les boîtiers que vous ne souhaitez pas voir dans Home Assistant."
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Échec de l'authentification – vérifiez votre sous-domaine et votre jeton API.",
+      "cannot_connect": "Impossible de joindre l'API Firewalla. Vérifiez votre réseau et votre sous-domaine."
+    },
+    "abort": {
+      "already_configured": "Ce compte Firewalla MSP est déjà configuré."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Options Firewalla",
+        "data": {
+          "scan_interval": "Intervalle d'interrogation (secondes)",
+          "enable_alarms": "Activer les capteurs d'alarme",
+          "enable_rules": "Activer les capteurs de règles",
+          "enable_flows": "Activer les capteurs de flux réseau",
+          "enable_traffic": "Activer les capteurs de bande passante",
+          "track_devices": "Activer le suivi des appareils",
+          "stale_days": "Suppression des appareils obsolètes (jours)",
+          "box_filter": "Boîtiers actifs",
+          "enable_target_lists": "Activer les capteurs de listes cibles"
+        },
+        "data_description": {
+          "stale_days": "Les appareils absents de l'API pendant ce nombre de jours seront supprimés de Home Assistant.",
+          "enable_flows": "Crée un capteur par flux réseau récent. Peut générer de nombreuses entités.",
+          "enable_traffic": "Ajoute des capteurs de téléchargement/envoi par appareil.",
+          "box_filter": "Sélectionnez les boîtiers Firewalla à surveiller. Tous les boîtiers sont inclus par défaut.",
+          "enable_target_lists": "Crée un capteur par liste cible. Chaque capteur affiche le nombre d'entrées avec les domaines/IP en attributs."
+        }
+      }
+    }
+  },
+  "entity": {
+    "switch": {
+      "rule_switch": {
+        "name": "Règle",
+        "state": {
+          "on": "Active",
+          "off": "En pause"
+        }
+      }
+    },
+    "binary_sensor": {
+      "box_online": {
+        "name": "En ligne",
+        "state": {
+          "on": "En ligne",
+          "off": "Hors ligne"
+        }
+      },
+      "device_online": {
+        "name": "En ligne",
+        "state": {
+          "on": "En ligne",
+          "off": "Hors ligne"
+        }
+      },
+      "rule_active": {
+        "state": {
+          "on": "Active",
+          "off": "En pause"
+        }
+      },
+      "alarm_active": {
+        "state": {
+          "on": "Active",
+          "off": "Résolue"
+        }
+      }
+    },
+    "sensor": {
+      "ip_address": {
+        "name": "Adresse IP"
+      },
+      "mac_address": {
+        "name": "Adresse MAC"
+      },
+      "network_name": {
+        "name": "Réseau"
+      },
+      "total_download": {
+        "name": "Téléchargement total"
+      },
+      "total_upload": {
+        "name": "Envoi total"
+      },
+      "alarm_count": {
+        "name": "Alarmes actives"
+      },
+      "flow_transfer": {
+        "name": "Transfert de flux"
+      },
+      "msp_online_boxes": {
+        "name": "Boîtiers en ligne"
+      },
+      "msp_offline_boxes": {
+        "name": "Boîtiers hors ligne"
+      },
+      "msp_total_alarms": {
+        "name": "Total des alarmes"
+      },
+      "msp_total_rules": {
+        "name": "Total des règles"
+      },
+      "target_list": {
+        "name": "Liste cible"
+      }
+    }
+  }
+}

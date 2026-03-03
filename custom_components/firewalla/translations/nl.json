@@ -1,0 +1,147 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Verbinden met Firewalla MSP",
+        "description": "Voer je Firewalla MSP-subdomein in (het deel vóór .firewalla.net) en je persoonlijke toegangstoken.\n\nMaak een token aan via **Accountinstellingen → Nieuw token aanmaken** in je MSP-portaal.",
+        "data": {
+          "subdomain": "MSP-subdomein",
+          "api_token": "API-token",
+          "scan_interval": "Polling-interval (seconden)",
+          "enable_alarms": "Alarmsensoren inschakelen",
+          "enable_rules": "Regelsensoren inschakelen",
+          "enable_flows": "Verkeersstroomsensoren inschakelen",
+          "enable_traffic": "Bandbreedtesensoren inschakelen",
+          "track_devices": "Apparaattracking inschakelen",
+          "enable_target_lists": "Doellijstsensoren inschakelen"
+        },
+        "data_description": {
+          "subdomain": "bijv. 'mijnbedrijf' voor mijnbedrijf.firewalla.net",
+          "scan_interval": "Minimum 30s. Aanbevolen 300s (5 min).",
+          "enable_flows": "Maakt een sensor aan voor elke recente verkeersstroom. Kan een groot aantal entiteiten genereren.",
+          "enable_traffic": "Voegt download-/uploadtellers per apparaat toe.",
+          "enable_target_lists": "Maakt een sensor per doellijst met het aantal items en de inhoud."
+        }
+      },
+      "select_boxes": {
+        "title": "Boxen selecteren",
+        "description": "Kies welke Firewalla-boxen je wilt monitoren in Home Assistant. Standaard zijn alle boxen geselecteerd.",
+        "data": {
+          "box_filter": "Te monitoren boxen"
+        },
+        "data_description": {
+          "box_filter": "Deselecteer boxen die je niet in Home Assistant wilt zien."
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Authenticatie mislukt – controleer je subdomein en API-token.",
+      "cannot_connect": "Kan de Firewalla-API niet bereiken. Controleer je netwerk en subdomein."
+    },
+    "abort": {
+      "already_configured": "Dit Firewalla MSP-account is al geconfigureerd."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Firewalla-opties",
+        "data": {
+          "scan_interval": "Polling-interval (seconden)",
+          "enable_alarms": "Alarmsensoren inschakelen",
+          "enable_rules": "Regelsensoren inschakelen",
+          "enable_flows": "Verkeersstroomsensoren inschakelen",
+          "enable_traffic": "Bandbreedtesensoren inschakelen",
+          "track_devices": "Apparaattracking inschakelen",
+          "stale_days": "Verouderde apparaten verwijderen (dagen)",
+          "box_filter": "Actieve boxen",
+          "enable_target_lists": "Doellijstsensoren inschakelen"
+        },
+        "data_description": {
+          "stale_days": "Apparaten die zo lang niet door de API zijn gemeld, worden uit Home Assistant verwijderd.",
+          "enable_flows": "Maakt een sensor per recente verkeersstroom. Kan veel entiteiten genereren.",
+          "enable_traffic": "Voegt download-/uploadsensoren per apparaat toe.",
+          "box_filter": "Selecteer welke Firewalla-boxen je wilt monitoren. Standaard zijn alle boxen opgenomen.",
+          "enable_target_lists": "Maakt een sensor per doellijst. Elke sensor toont het aantal items met domeinen/IP's in attributen."
+        }
+      }
+    }
+  },
+  "entity": {
+    "switch": {
+      "rule_switch": {
+        "name": "Regel",
+        "state": {
+          "on": "Actief",
+          "off": "Gepauzeerd"
+        }
+      }
+    },
+    "binary_sensor": {
+      "box_online": {
+        "name": "Online",
+        "state": {
+          "on": "Online",
+          "off": "Offline"
+        }
+      },
+      "device_online": {
+        "name": "Online",
+        "state": {
+          "on": "Online",
+          "off": "Offline"
+        }
+      },
+      "rule_active": {
+        "state": {
+          "on": "Actief",
+          "off": "Gepauzeerd"
+        }
+      },
+      "alarm_active": {
+        "state": {
+          "on": "Actief",
+          "off": "Opgelost"
+        }
+      }
+    },
+    "sensor": {
+      "ip_address": {
+        "name": "IP-adres"
+      },
+      "mac_address": {
+        "name": "MAC-adres"
+      },
+      "network_name": {
+        "name": "Netwerk"
+      },
+      "total_download": {
+        "name": "Totale download"
+      },
+      "total_upload": {
+        "name": "Totale upload"
+      },
+      "alarm_count": {
+        "name": "Actieve alarmen"
+      },
+      "flow_transfer": {
+        "name": "Stroomoverdracht"
+      },
+      "msp_online_boxes": {
+        "name": "Boxen online"
+      },
+      "msp_offline_boxes": {
+        "name": "Boxen offline"
+      },
+      "msp_total_alarms": {
+        "name": "Totaal alarmen"
+      },
+      "msp_total_rules": {
+        "name": "Totaal regels"
+      },
+      "target_list": {
+        "name": "Doellijst"
+      }
+    }
+  }
+}

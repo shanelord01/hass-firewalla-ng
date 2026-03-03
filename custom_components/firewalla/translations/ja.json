@@ -1,0 +1,147 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Firewalla MSP に接続",
+        "description": "Firewalla MSP のサブドメイン（.firewalla.net の前の部分）と個人アクセストークンを入力してください。\n\nMSP ポータルの **アカウント設定 → 新しいトークンを作成** でトークンを作成できます。",
+        "data": {
+          "subdomain": "MSP サブドメイン",
+          "api_token": "API トークン",
+          "scan_interval": "ポーリング間隔（秒）",
+          "enable_alarms": "アラームセンサーを有効化",
+          "enable_rules": "ルールセンサーを有効化",
+          "enable_flows": "トラフィックフローセンサーを有効化",
+          "enable_traffic": "帯域幅センサーを有効化",
+          "track_devices": "デバイストラッキングを有効化",
+          "enable_target_lists": "ターゲットリストセンサーを有効化"
+        },
+        "data_description": {
+          "subdomain": "例: mycompany.firewalla.net の場合 'mycompany'",
+          "scan_interval": "最短 30 秒。推奨 300 秒（5分）。",
+          "enable_flows": "最近のトラフィックフローごとにセンサーを作成します。多数のエンティティが生成される場合があります。",
+          "enable_traffic": "デバイスごとにダウンロード/アップロードカウンターを追加します。",
+          "enable_target_lists": "ターゲットリストごとにエントリ数とコンテンツを表示するセンサーを作成します。"
+        }
+      },
+      "select_boxes": {
+        "title": "ボックスを選択",
+        "description": "Home Assistant で監視する Firewalla ボックスを選択してください。デフォルトではすべてのボックスが選択されています。",
+        "data": {
+          "box_filter": "監視するボックス"
+        },
+        "data_description": {
+          "box_filter": "Home Assistant に表示したくないボックスの選択を解除してください。"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "認証に失敗しました - サブドメインと API トークンを確認してください。",
+      "cannot_connect": "Firewalla API に接続できません。ネットワークとサブドメインを確認してください。"
+    },
+    "abort": {
+      "already_configured": "この Firewalla MSP アカウントは既に設定されています。"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Firewalla オプション",
+        "data": {
+          "scan_interval": "ポーリング間隔（秒）",
+          "enable_alarms": "アラームセンサーを有効化",
+          "enable_rules": "ルールセンサーを有効化",
+          "enable_flows": "トラフィックフローセンサーを有効化",
+          "enable_traffic": "帯域幅センサーを有効化",
+          "track_devices": "デバイストラッキングを有効化",
+          "stale_days": "古いデバイスの削除（日数）",
+          "box_filter": "アクティブなボックス",
+          "enable_target_lists": "ターゲットリストセンサーを有効化"
+        },
+        "data_description": {
+          "stale_days": "API から指定日数以上不在のデバイスは Home Assistant から削除されます。",
+          "enable_flows": "最近のトラフィックフローごとにセンサーを作成します。多数のエンティティが生成される場合があります。",
+          "enable_traffic": "デバイスごとにダウンロード/アップロードセンサーを追加します。",
+          "box_filter": "監視する Firewalla ボックスを選択してください。デフォルトではすべて含まれます。",
+          "enable_target_lists": "ターゲットリストごとにセンサーを作成します。各センサーは属性にドメイン/IP とエントリ数を表示します。"
+        }
+      }
+    }
+  },
+  "entity": {
+    "switch": {
+      "rule_switch": {
+        "name": "ルール",
+        "state": {
+          "on": "有効",
+          "off": "一時停止"
+        }
+      }
+    },
+    "binary_sensor": {
+      "box_online": {
+        "name": "オンライン",
+        "state": {
+          "on": "オンライン",
+          "off": "オフライン"
+        }
+      },
+      "device_online": {
+        "name": "オンライン",
+        "state": {
+          "on": "オンライン",
+          "off": "オフライン"
+        }
+      },
+      "rule_active": {
+        "state": {
+          "on": "有効",
+          "off": "一時停止"
+        }
+      },
+      "alarm_active": {
+        "state": {
+          "on": "アクティブ",
+          "off": "解除済み"
+        }
+      }
+    },
+    "sensor": {
+      "ip_address": {
+        "name": "IPアドレス"
+      },
+      "mac_address": {
+        "name": "MACアドレス"
+      },
+      "network_name": {
+        "name": "ネットワーク"
+      },
+      "total_download": {
+        "name": "合計ダウンロード"
+      },
+      "total_upload": {
+        "name": "合計アップロード"
+      },
+      "alarm_count": {
+        "name": "アクティブなアラーム"
+      },
+      "flow_transfer": {
+        "name": "フロー転送量"
+      },
+      "msp_online_boxes": {
+        "name": "オンラインボックス数"
+      },
+      "msp_offline_boxes": {
+        "name": "オフラインボックス数"
+      },
+      "msp_total_alarms": {
+        "name": "アラーム合計"
+      },
+      "msp_total_rules": {
+        "name": "ルール合計"
+      },
+      "target_list": {
+        "name": "ターゲットリスト"
+      }
+    }
+  }
+}

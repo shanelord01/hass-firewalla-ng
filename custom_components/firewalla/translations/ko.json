@@ -1,0 +1,147 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Firewalla MSP에 연결",
+        "description": "Firewalla MSP 하위 도메인(.firewalla.net 앞부분)과 개인 액세스 토큰을 입력하세요.\n\nMSP 포털의 **계정 설정 → 새 토큰 만들기**에서 토큰을 생성할 수 있습니다.",
+        "data": {
+          "subdomain": "MSP 하위 도메인",
+          "api_token": "API 토큰",
+          "scan_interval": "폴링 간격 (초)",
+          "enable_alarms": "알람 센서 활성화",
+          "enable_rules": "규칙 센서 활성화",
+          "enable_flows": "트래픽 흐름 센서 활성화",
+          "enable_traffic": "대역폭 센서 활성화",
+          "track_devices": "기기 추적 활성화",
+          "enable_target_lists": "대상 목록 센서 활성화"
+        },
+        "data_description": {
+          "subdomain": "예: mycompany.firewalla.net의 경우 'mycompany'",
+          "scan_interval": "최소 30초. 권장 300초 (5분).",
+          "enable_flows": "최근 트래픽 흐름마다 센서를 생성합니다. 많은 엔티티가 생성될 수 있습니다.",
+          "enable_traffic": "기기별 다운로드/업로드 카운터를 추가합니다.",
+          "enable_target_lists": "대상 목록별로 항목 수와 콘텐츠를 표시하는 센서를 생성합니다."
+        }
+      },
+      "select_boxes": {
+        "title": "박스 선택",
+        "description": "Home Assistant에서 모니터링할 Firewalla 박스를 선택하세요. 기본적으로 모든 박스가 선택됩니다.",
+        "data": {
+          "box_filter": "모니터링할 박스"
+        },
+        "data_description": {
+          "box_filter": "Home Assistant에 표시하지 않을 박스의 선택을 해제하세요."
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "인증 실패 - 하위 도메인과 API 토큰을 확인하세요.",
+      "cannot_connect": "Firewalla API에 연결할 수 없습니다. 네트워크와 하위 도메인을 확인하세요."
+    },
+    "abort": {
+      "already_configured": "이 Firewalla MSP 계정은 이미 구성되어 있습니다."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Firewalla 옵션",
+        "data": {
+          "scan_interval": "폴링 간격 (초)",
+          "enable_alarms": "알람 센서 활성화",
+          "enable_rules": "규칙 센서 활성화",
+          "enable_flows": "트래픽 흐름 센서 활성화",
+          "enable_traffic": "대역폭 센서 활성화",
+          "track_devices": "기기 추적 활성화",
+          "stale_days": "오래된 기기 제거 (일)",
+          "box_filter": "활성 박스",
+          "enable_target_lists": "대상 목록 센서 활성화"
+        },
+        "data_description": {
+          "stale_days": "API에서 이 기간 동안 감지되지 않은 기기는 Home Assistant에서 제거됩니다.",
+          "enable_flows": "최근 트래픽 흐름마다 센서를 생성합니다. 많은 엔티티가 생성될 수 있습니다.",
+          "enable_traffic": "기기별 다운로드/업로드 센서를 추가합니다.",
+          "box_filter": "모니터링할 Firewalla 박스를 선택하세요. 기본적으로 모든 박스가 포함됩니다.",
+          "enable_target_lists": "대상 목록별로 센서를 생성합니다. 각 센서는 속성에 도메인/IP와 항목 수를 표시합니다."
+        }
+      }
+    }
+  },
+  "entity": {
+    "switch": {
+      "rule_switch": {
+        "name": "규칙",
+        "state": {
+          "on": "활성",
+          "off": "일시중지"
+        }
+      }
+    },
+    "binary_sensor": {
+      "box_online": {
+        "name": "온라인",
+        "state": {
+          "on": "온라인",
+          "off": "오프라인"
+        }
+      },
+      "device_online": {
+        "name": "온라인",
+        "state": {
+          "on": "온라인",
+          "off": "오프라인"
+        }
+      },
+      "rule_active": {
+        "state": {
+          "on": "활성",
+          "off": "일시중지"
+        }
+      },
+      "alarm_active": {
+        "state": {
+          "on": "활성",
+          "off": "해제됨"
+        }
+      }
+    },
+    "sensor": {
+      "ip_address": {
+        "name": "IP 주소"
+      },
+      "mac_address": {
+        "name": "MAC 주소"
+      },
+      "network_name": {
+        "name": "네트워크"
+      },
+      "total_download": {
+        "name": "총 다운로드"
+      },
+      "total_upload": {
+        "name": "총 업로드"
+      },
+      "alarm_count": {
+        "name": "활성 알람"
+      },
+      "flow_transfer": {
+        "name": "흐름 전송량"
+      },
+      "msp_online_boxes": {
+        "name": "온라인 박스"
+      },
+      "msp_offline_boxes": {
+        "name": "오프라인 박스"
+      },
+      "msp_total_alarms": {
+        "name": "총 알람"
+      },
+      "msp_total_rules": {
+        "name": "총 규칙"
+      },
+      "target_list": {
+        "name": "대상 목록"
+      }
+    }
+  }
+}
