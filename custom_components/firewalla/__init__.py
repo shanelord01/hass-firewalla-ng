@@ -293,6 +293,8 @@ def _async_register_services(hass: HomeAssistant) -> None:
         Returns a dict with a 'results' key containing the matched alarms so the
         caller can use response_variable in an automation action.
 
+        Searches across all configured MSP accounts and aggregates results.
+
         Example automation step:
           action: firewalla.search_alarms
           data:
@@ -305,20 +307,25 @@ def _async_register_services(hass: HomeAssistant) -> None:
         query: str = call.data["query"]
         limit: int = call.data.get("limit", 50)
 
-        # Use any loaded config entry to reach the client
-        entries = hass.config_entries.async_entries(DOMAIN)
+        entries = _get_entries()
         if not entries:
             raise ServiceValidationError("No Firewalla integration is configured.")
 
-        client: FirewallaApiClient = entries[0].runtime_data.client
-        results = await client.search_alarms(query=query, limit=limit)
-        return {"results": results, "count": len(results)}
+        all_results: list[dict[str, Any]] = []
+        for entry in entries:
+            data: FirewallaData = entry.runtime_data
+            results = await data.client.search_alarms(query=query, limit=limit)
+            all_results.extend(results)
+
+        return {"results": all_results, "count": len(all_results)}
 
     async def _handle_search_flows(call: ServiceCall) -> dict[str, Any]:
         """Search flows using Firewalla query syntax.
 
         Returns a dict with a 'results' key containing the matched flows so the
         caller can use response_variable in an automation action.
+
+        Searches across all configured MSP accounts and aggregates results.
 
         Example automation step:
           action: firewalla.search_flows
@@ -332,13 +339,17 @@ def _async_register_services(hass: HomeAssistant) -> None:
         query: str = call.data["query"]
         limit: int = call.data.get("limit", 50)
 
-        entries = hass.config_entries.async_entries(DOMAIN)
+        entries = _get_entries()
         if not entries:
             raise ServiceValidationError("No Firewalla integration is configured.")
 
-        client: FirewallaApiClient = entries[0].runtime_data.client
-        results = await client.search_flows(query=query, limit=limit)
-        return {"results": results, "count": len(results)}
+        all_results: list[dict[str, Any]] = []
+        for entry in entries:
+            data: FirewallaData = entry.runtime_data
+            results = await data.client.search_flows(query=query, limit=limit)
+            all_results.extend(results)
+
+        return {"results": all_results, "count": len(all_results)}
 
     hass.services.async_register(
         DOMAIN,
