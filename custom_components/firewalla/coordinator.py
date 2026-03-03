@@ -81,9 +81,11 @@ class FirewallaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             try:
                 ts = datetime.fromisoformat(iso_ts)
                 # Ensure loaded timestamps are tz-aware for comparison with
-                # dt_util.now(). Stored values from older versions may be naive.
+                # dt_util.now(). Stored values from older versions used
+                # datetime.now() which produces naive local time — interpret
+                # them in HA's configured timezone rather than UTC.
                 if ts.tzinfo is None:
-                    ts = ts.replace(tzinfo=dt_util.UTC)
+                    ts = ts.replace(tzinfo=dt_util.get_default_time_zone())
             except (ValueError, TypeError):
                 continue
             if ts < cutoff:
