@@ -60,6 +60,21 @@
       },
       "flow_transfer": {
         "default": "mdi:swap-horizontal"
+      },
+      "msp_online_boxes": {
+        "default": "mdi:router-wireless"
+      },
+      "msp_offline_boxes": {
+        "default": "mdi:router-wireless-off"
+      },
+      "msp_total_alarms": {
+        "default": "mdi:shield-alert"
+      },
+      "msp_total_rules": {
+        "default": "mdi:shield-half-full"
+      },
+      "target_list": {
+        "default": "mdi:format-list-bulleted"
       }
     }
   }
