@@ -22,7 +22,7 @@ from .const import (
     DOMAIN,
 )
 from .coordinator import FirewallaCoordinator
-from .helpers import _box_display_name
+from .helpers import box_display_name
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -102,7 +102,7 @@ class FirewallaBoxOnlineSensor(_FirewallaBinarySensor):
         self._attr_unique_id = f"{DOMAIN}_box_online_{self._box_id}"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"box_{self._box_id}")},
-            name=_box_display_name(box),
+            name=box_display_name(box),
             manufacturer="Firewalla",
             model=box.get("model", "Firewalla Box"),
             sw_version=box.get("version"),
@@ -235,7 +235,7 @@ class FirewallaRuleActiveSensor(_FirewallaBinarySensor):
 
     @staticmethod
     def _first_box_id(coordinator: FirewallaCoordinator) -> str:
-        boxes = coordinator.data.get("boxes", [{}])
+        boxes = coordinator.data.get("boxes", []) if coordinator.data else []
         return boxes[0].get("id", "unknown") if boxes else "unknown"
 
     @callback
@@ -291,7 +291,7 @@ class FirewallaAlarmSensor(_FirewallaBinarySensor):
 
     @staticmethod
     def _first_box_id(coordinator: FirewallaCoordinator) -> str:
-        boxes = coordinator.data.get("boxes", [{}])
+        boxes = coordinator.data.get("boxes", []) if coordinator.data else []
         return boxes[0].get("id", "unknown") if boxes else "unknown"
 
     @callback
