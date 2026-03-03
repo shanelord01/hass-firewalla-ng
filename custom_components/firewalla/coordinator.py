@@ -11,6 +11,7 @@ from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.util import dt as dt_util
 
 from .api import FirewallaApiClient
 from .const import (
@@ -73,12 +74,16 @@ class FirewallaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             return
 
         stale_days = self._opt(CONF_STALE_DAYS, DEFAULT_STALE_DAYS)
-        cutoff = datetime.now() - timedelta(days=stale_days * 2)
+        cutoff = dt_util.now() - timedelta(days=stale_days * 2)
         loaded = 0
 
         for dev_id, iso_ts in stored.items():
             try:
                 ts = datetime.fromisoformat(iso_ts)
+                # Ensure loaded timestamps are tz-aware for comparison with
+                # dt_util.now(). Stored values from older versions may be naive.
+                if ts.tzinfo is None:
+                    ts = ts.replace(tzinfo=dt_util.UTC)
             except (ValueError, TypeError):
                 continue
             if ts < cutoff:
@@ -162,7 +167,7 @@ class FirewallaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         }
 
         # Update the seen-timestamp for every device in this poll
-        now = datetime.now()
+        now = dt_util.now()
         current_ids = {d["id"] for d in devices if isinstance(d, dict) and "id" in d}
         newly_absent = self._known_device_ids - current_ids  # devices missing this poll
         for dev_id in current_ids:
@@ -226,7 +231,7 @@ class FirewallaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """
         stale_days = self._opt(CONF_STALE_DAYS, DEFAULT_STALE_DAYS)
         threshold = timedelta(days=stale_days)
-        now = datetime.now()
+        now = dt_util.now()
 
         absent_ids = self._known_device_ids - current_ids
         if not absent_ids:
