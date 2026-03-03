@@ -60,19 +60,16 @@ class FirewallaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 subdomain=user_input[CONF_SUBDOMAIN],
             )
             try:
-                ok = await client.async_check_credentials()
+                # Use get_boxes() directly — a non-empty result confirms valid
+                # credentials without a separate async_check_credentials() call
+                # that would hit GET /boxes twice in rapid succession.
+                boxes = await client.get_boxes()
             except Exception:  # noqa: BLE001
                 _LOGGER.exception("Error during Firewalla credential check")
                 errors["base"] = "cannot_connect"
             else:
-                if ok:
-                    # Fetch boxes now so Step 2 can present them
-                    try:
-                        self._boxes = await client.get_boxes()
-                    except Exception:  # noqa: BLE001
-                        _LOGGER.exception("Could not fetch box list")
-                        self._boxes = []
-
+                if boxes is not None:
+                    self._boxes = boxes
                     self._user_input = user_input
 
                     # If only one box, skip selection step
