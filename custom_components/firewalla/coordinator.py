@@ -7,6 +7,7 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
@@ -107,11 +108,14 @@ class FirewallaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Fetch all enabled data from the Firewalla MSP API."""
         try:
             boxes, devices = await self._fetch_core_data()
-        except FirewallaAuthError:
-            # Propagate auth errors directly — they need to surface as
-            # ConfigEntryAuthFailed in async_setup_entry, not be swallowed
-            # as transient failures or masked by cached data.
-            raise
+        except FirewallaAuthError as exc:
+            # Translate to ConfigEntryAuthFailed so HA's first_refresh machinery
+            # (raise_on_auth_failed=True) propagates it to async_setup_entry rather
+            # than wrapping it in ConfigEntryNotReady. This triggers HA's re-auth
+            # notification instead of looping retry.
+            raise ConfigEntryAuthFailed(
+                f"Invalid Firewalla API token — re-enter your credentials: {exc}"
+            ) from exc
         except Exception as exc:
             if self.data:
                 _LOGGER.warning("API error - using cached data: %s", exc)
@@ -229,6 +233,7 @@ class FirewallaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             return
 
         dev_registry = dr.async_get(self.hass)
+        removed_any = False
 
         for dev_id in absent_ids:
             last_seen = self._device_last_seen.get(dev_id)
@@ -256,6 +261,14 @@ class FirewallaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             )
             self._known_device_ids.discard(dev_id)
             self._device_last_seen.pop(dev_id, None)
+            removed_any = True
+
+        # Persist after removal so the removed entries are not reloaded on the
+        # next HA restart — without this, the store still contains the old
+        # timestamps and the removal attempt (harmless but noisy) repeats on
+        # every poll until the entries age past stale_days × 2.
+        if removed_any:
+            await self._async_persist_timestamps()
 
     async def _async_persist_timestamps(self) -> None:
         """Write current device-seen timestamps to persistent storage.
