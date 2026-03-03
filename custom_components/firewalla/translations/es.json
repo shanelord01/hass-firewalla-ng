@@ -24,13 +24,13 @@
         }
       },
       "select_boxes": {
-        "title": "Seleccionar dispositivos",
-        "description": "Elige qué dispositivos Firewalla supervisar en Home Assistant. Todos los dispositivos están seleccionados por defecto.",
+        "title": "Seleccionar Boxes",
+        "description": "Elige qué Firewalla Boxes supervisar en Home Assistant. Todos los Boxes están seleccionados por defecto.",
         "data": {
-          "box_filter": "Dispositivos a supervisar"
+          "box_filter": "Boxes a supervisar"
         },
         "data_description": {
-          "box_filter": "Desmarca los dispositivos que no deseas que aparezcan en Home Assistant."
+          "box_filter": "Desmarca los Boxes que no deseas que aparezcan en Home Assistant."
         }
       }
     },
@@ -54,14 +54,14 @@
           "enable_traffic": "Activar sensores de ancho de banda",
           "track_devices": "Activar seguimiento de dispositivos",
           "stale_days": "Eliminación de dispositivos inactivos (días)",
-          "box_filter": "Dispositivos activos",
+          "box_filter": "Boxes activos",
           "enable_target_lists": "Activar sensores de listas de destino"
         },
         "data_description": {
           "stale_days": "Los dispositivos ausentes de la API durante este número de días se eliminarán de Home Assistant.",
           "enable_flows": "Crea un sensor por flujo de tráfico reciente. Puede generar muchas entidades.",
           "enable_traffic": "Añade sensores de descarga/subida por dispositivo.",
-          "box_filter": "Selecciona qué dispositivos Firewalla supervisar. Todos están incluidos por defecto.",
+          "box_filter": "Selecciona qué Firewalla Boxes supervisar. Todos están incluidos por defecto.",
           "enable_target_lists": "Crea un sensor por lista de destino. Cada sensor muestra el recuento de entradas con dominios/IPs en atributos."
         }
       }
@@ -128,10 +128,10 @@
         "name": "Transferencia de flujo"
       },
       "msp_online_boxes": {
-        "name": "Dispositivos en línea"
+        "name": "Boxes en línea"
       },
       "msp_offline_boxes": {
-        "name": "Dispositivos fuera de línea"
+        "name": "Boxes fuera de línea"
       },
       "msp_total_alarms": {
         "name": "Total de alarmas"
