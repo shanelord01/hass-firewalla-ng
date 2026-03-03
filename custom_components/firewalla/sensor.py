@@ -26,7 +26,7 @@ from .const import (
     DOMAIN,
 )
 from .coordinator import FirewallaCoordinator
-from .helpers import _box_display_name
+from .helpers import box_display_name
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -271,7 +271,7 @@ class FirewallaAlarmCountSensor(CoordinatorEntity[FirewallaCoordinator], SensorE
         box_id = boxes[0].get("id", "global") if boxes else "global"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"box_{box_id}")},
-            name=_box_display_name(boxes[0]) if boxes else "Firewalla",
+            name=box_display_name(boxes[0]) if boxes else "Firewalla",
             manufacturer="Firewalla",
         )
 
@@ -395,7 +395,10 @@ class FirewallaMspBaseSensor(CoordinatorEntity[FirewallaCoordinator], SensorEnti
         super().__init__(coordinator)
         self._key = key
         self._attr_translation_key = translation_key
-        self._attr_unique_id = f"{DOMAIN}_msp_{key}"
+        # Include entry_id to prevent unique_id collision when two MSP accounts
+        # are configured — without it both entries generate identical unique_ids
+        # and HA silently drops the second account's sensors.
+        self._attr_unique_id = f"{DOMAIN}_msp_{key}_{coordinator.config_entry.entry_id}"
         self._attr_device_info = self._MSP_DEVICE_INFO
 
     @property
@@ -475,13 +478,7 @@ class FirewallaTargetListSensor(CoordinatorEntity[FirewallaCoordinator], SensorE
         # Use the TL name as the entity name within the MSP device
         self._attr_name = tl.get("name", self._tl_id)
 
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, "msp_global")},
-            name="Firewalla MSP",
-            manufacturer="Firewalla",
-            model="MSP",
-            entry_type=DeviceEntryType.SERVICE,
-        )
+        self._attr_device_info = FirewallaMspBaseSensor._MSP_DEVICE_INFO
 
     def _get_tl(self) -> dict[str, Any] | None:
         """Find this target list in the latest coordinator data."""
