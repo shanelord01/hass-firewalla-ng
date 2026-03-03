@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 
-def _box_display_name(box: dict) -> str:
+def box_display_name(box: dict) -> str:
     """Return a clean box display name without duplicating 'Firewalla'.
 
     The Firewalla MSP API sometimes returns box names that already contain
