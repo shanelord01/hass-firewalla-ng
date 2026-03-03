@@ -258,6 +258,9 @@ logger:
 
 ## Changelog
 
+### v2.4.4
+- Add translations for German, French, Spanish, Italian, Dutch, Portuguese (Brazil), Simplified Chinese, Japanese, and Korean — config flow, options flow, and all entity names/states are now localised for HA's 9 largest non-English user bases
+
 ### v2.4.3
 - Fix HTTP 429 Too Many Requests on startup — the config flow was calling `async_check_credentials()` (GET /boxes) and then immediately `get_boxes()` (GET /boxes again) to populate the box-selection step. Replaced with a single `get_boxes()` call that serves both purposes
 - Fix HTTP 429 at runtime — `authenticate()` was calling GET /boxes immediately before the coordinator's first refresh also called GET /boxes. The separate pre-flight authenticate call has been removed; the first coordinator refresh now acts as the implicit credential check
