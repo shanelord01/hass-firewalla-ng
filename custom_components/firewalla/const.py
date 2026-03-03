@@ -33,10 +33,6 @@ DEFAULT_SCAN_INTERVAL: Final = 300  # 5 minutes
 DEFAULT_STALE_DAYS: Final = 30      # days before a device is considered stale
 DEFAULT_TIMEOUT: Final = 30
 
-# Internal storage keys
-COORDINATOR: Final = "coordinator"
-API_CLIENT: Final = "client"
-
 # Staleness tracking
 STORAGE_KEY: Final = f"{DOMAIN}.device_seen"
 STORAGE_VERSION: Final = 1
