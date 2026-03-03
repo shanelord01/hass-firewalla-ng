@@ -3,7 +3,7 @@
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz)
 
 Monitor one or multiple Firewalla MSP-managed devices from Home Assistant.
-Built against the [Firewalla MSP API v2](https://docs.firewalla.net/) for Home Assistant 2024.1+.
+Built against the [Firewalla MSP API v2](https://docs.firewalla.net/) for Home Assistant 2024.4+.
 
 ---
 
@@ -251,7 +251,7 @@ logger:
 
 - Original integration: [blueharford/hass-firewalla](https://github.com/blueharford/hass-firewalla)
 - Refactored: [DaneManes/hass-firewalla](https://github.com/DaneManes/hass-firewalla)
-- Rewritten for HA 2024.1+: [shanelord01/hass-firewalla-ng](https://github.com/shanelord01/hass-firewalla-ng)
+- Rewritten for HA 2024.4+: [shanelord01/hass-firewalla-ng](https://github.com/shanelord01/hass-firewalla-ng)
 - Services and API fixes: [TechButton/hass-firewalla-ng](https://github.com/TechButton/hass-firewalla-ng)
 
 ---
@@ -346,7 +346,7 @@ logger:
 - Fixed manufacturer showing as "Unknown" for device sensors
 
 ### v2.0.0
-- Full rewrite for Home Assistant 2024.1+
+- Full rewrite for Home Assistant 2024.4+
 - Dedicated `FirewallaCoordinator` with stale device cleanup
 - `async_remove_config_entry_device` support
 - Full `icons.json`, `strings.json`, and options flow support
