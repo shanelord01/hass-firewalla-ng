@@ -24,13 +24,13 @@
         }
       },
       "select_boxes": {
-        "title": "Sélectionner les boîtiers",
-        "description": "Choisissez les boîtiers Firewalla à surveiller dans Home Assistant. Tous les boîtiers sont sélectionnés par défaut.",
+        "title": "Sélectionner les Box",
+        "description": "Choisissez les Firewalla Box à surveiller dans Home Assistant. Tous les Box sont sélectionnés par défaut.",
         "data": {
-          "box_filter": "Boîtiers à surveiller"
+          "box_filter": "Box à surveiller"
         },
         "data_description": {
-          "box_filter": "Désélectionnez les boîtiers que vous ne souhaitez pas voir dans Home Assistant."
+          "box_filter": "Désélectionnez les Box que vous ne souhaitez pas voir dans Home Assistant."
         }
       }
     },
@@ -54,14 +54,14 @@
           "enable_traffic": "Activer les capteurs de bande passante",
           "track_devices": "Activer le suivi des appareils",
           "stale_days": "Suppression des appareils obsolètes (jours)",
-          "box_filter": "Boîtiers actifs",
+          "box_filter": "Box actifs",
           "enable_target_lists": "Activer les capteurs de listes cibles"
         },
         "data_description": {
           "stale_days": "Les appareils absents de l'API pendant ce nombre de jours seront supprimés de Home Assistant.",
           "enable_flows": "Crée un capteur par flux réseau récent. Peut générer de nombreuses entités.",
           "enable_traffic": "Ajoute des capteurs de téléchargement/envoi par appareil.",
-          "box_filter": "Sélectionnez les boîtiers Firewalla à surveiller. Tous les boîtiers sont inclus par défaut.",
+          "box_filter": "Sélectionnez les Firewalla Box à surveiller. Tous les Box sont inclus par défaut.",
           "enable_target_lists": "Crée un capteur par liste cible. Chaque capteur affiche le nombre d'entrées avec les domaines/IP en attributs."
         }
       }
@@ -128,10 +128,10 @@
         "name": "Transfert de flux"
       },
       "msp_online_boxes": {
-        "name": "Boîtiers en ligne"
+        "name": "Box en ligne"
       },
       "msp_offline_boxes": {
-        "name": "Boîtiers hors ligne"
+        "name": "Box hors ligne"
       },
       "msp_total_alarms": {
         "name": "Total des alarmes"
