@@ -24,13 +24,13 @@
         }
       },
       "select_boxes": {
-        "title": "选择设备",
-        "description": "选择要在 Home Assistant 中监控的 Firewalla 设备。默认选择所有设备。",
+        "title": "选择 Box",
+        "description": "选择要在 Home Assistant 中监控的 Firewalla Box。默认选择所有 Box。",
         "data": {
-          "box_filter": "要监控的设备"
+          "box_filter": "要监控的 Box"
         },
         "data_description": {
-          "box_filter": "取消选择不想在 Home Assistant 中显示的设备。"
+          "box_filter": "取消选择不想在 Home Assistant 中显示的 Box。"
         }
       }
     },
@@ -54,14 +54,14 @@
           "enable_traffic": "启用带宽传感器",
           "track_devices": "启用设备追踪",
           "stale_days": "移除过期设备（天）",
-          "box_filter": "活跃设备",
+          "box_filter": "活跃 Box",
           "enable_target_lists": "启用目标列表传感器"
         },
         "data_description": {
           "stale_days": "API 中缺失超过此天数的设备将从 Home Assistant 中移除。",
           "enable_flows": "为每个近期流量创建一个传感器。可能会生成大量实体。",
           "enable_traffic": "为每个设备添加下载/上传传感器。",
-          "box_filter": "选择要监控的 Firewalla 设备。默认包含所有设备。",
+          "box_filter": "选择要监控的 Firewalla Box。默认包含所有 Box。",
           "enable_target_lists": "为每个目标列表创建一个传感器。每个传感器在属性中显示条目数量及域名/IP。"
         }
       }
@@ -128,10 +128,10 @@
         "name": "流量传输"
       },
       "msp_online_boxes": {
-        "name": "在线设备数"
+        "name": "在线 Box 数"
       },
       "msp_offline_boxes": {
-        "name": "离线设备数"
+        "name": "离线 Box 数"
       },
       "msp_total_alarms": {
         "name": "告警总数"
