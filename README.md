@@ -252,7 +252,7 @@ logger:
 - Original integration: [blueharford/hass-firewalla](https://github.com/blueharford/hass-firewalla)
 - Refactored: [DaneManes/hass-firewalla](https://github.com/DaneManes/hass-firewalla)
 - Rewritten for HA 2024.4+: [shanelord01/hass-firewalla-ng](https://github.com/shanelord01/hass-firewalla-ng)
-- Services and API fixes: [TechButton/hass-firewalla-ng](https://github.com/TechButton/hass-firewalla-ng)
+- Initial Services and API fixes: [TechButton/hass-firewalla-ng](https://github.com/TechButton/hass-firewalla-ng)
 
 ---
 
