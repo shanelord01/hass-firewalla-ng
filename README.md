@@ -1,4 +1,4 @@
-# Firewalla for Home Assistant
+# Firewalla MSP Integration for Home Assistant
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz)
 
