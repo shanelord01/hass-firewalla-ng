@@ -99,15 +99,13 @@ class FirewallaApiClient:
 
                 if response.status == 429:
                     body = await response.text()
-                    _LOGGER.error("HTTP 429 from %s: %s", url, body)
-                    retry_after = response.headers.get("Retry-After")
-                    if retry_after:
-                        try:
-                            wait = min(int(retry_after), 60)
-                            _LOGGER.warning("Rate limited — backing off %ss", wait)
-                            await asyncio.sleep(wait)
-                        except ValueError:
-                            pass
+                    retry_after = response.headers.get("Retry-After", "?")
+                    _LOGGER.warning(
+                        "Rate limited (429) from %s — Retry-After: %s. "
+                        "Will retry at next poll interval.",
+                        url,
+                        retry_after,
+                    )
                     return None
 
                 # Detect unexpected HTML (e.g. login redirect)
