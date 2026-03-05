@@ -5,8 +5,7 @@
 Monitor one or multiple Firewalla MSP-managed devices from Home Assistant.
 Built against the [Firewalla MSP API v2](https://docs.firewalla.net/) for Home Assistant 2024.4+.
 
-**Note**: Logos and Icons 
-Display of icons and logos in this integration require Home Assistant 2026.3 which as of March 5th, 2026, is still in beta.
+**Note**: Display of icons and logos in this integration require Home Assistant 2026.3 which as of March 5th, 2026, is still in beta.
 
 ---
 
