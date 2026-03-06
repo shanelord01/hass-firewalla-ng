@@ -82,19 +82,10 @@ class FirewallaRuleSwitch(CoordinatorEntity[FirewallaCoordinator], SwitchEntity)
         )
 
     @property
-    def entity_registry_enabled_default(self) -> bool:
-        return True
-
-    @property
     def is_on(self) -> bool:
         """Return True if the rule is active."""
         rule = self._get_rule()
         return bool(rule and rule.get("status") == "active")
-
-    @property
-    def icon(self) -> str:
-        """Contextual icon — shield when active, shield-off when paused."""
-        return "mdi:shield-check" if self.is_on else "mdi:shield-off-outline"
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
