@@ -50,7 +50,6 @@ class FirewallaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             config_entry=entry,
         )
         self._client = client
-        self._entry = entry
         # Maps device id -> last datetime we saw it in the API response
         self._device_last_seen: dict[str, datetime] = {}
         # Tracks which device ids have been present across all updates
@@ -105,7 +104,7 @@ class FirewallaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     def _opt(self, key: str, default: Any = False) -> Any:
         """Read a config option, falling back to config entry data."""
-        return self._entry.options.get(key, self._entry.data.get(key, default))
+        return self.config_entry.options.get(key, self.config_entry.data.get(key, default))
 
     # ------------------------------------------------------------------
     # Main update
@@ -264,7 +263,7 @@ class FirewallaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             )
             dev_registry.async_update_device(
                 device_entry.id,
-                remove_config_entry_id=self._entry.entry_id,
+                remove_config_entry_id=self.config_entry.entry_id,
             )
             self._known_device_ids.discard(dev_id)
             self._device_last_seen.pop(dev_id, None)
