@@ -108,12 +108,20 @@ class FirewallaApiClient:
                     )
                     return None
 
-                # Detect unexpected HTML (e.g. login redirect)
+                # Fix #3: detect unexpected HTML (e.g. WAF block page, reverse
+                # proxy error, login redirect) after handling auth/rate-limit
+                # status codes. Include the HTTP status code in the log message
+                # so operators can distinguish a 403 WAF block from a 503
+                # maintenance page — previously the status was silently dropped.
                 ct = response.headers.get("Content-Type", "")
                 if "text/html" in ct:
                     body = await response.text()
                     if "<html" in body:
-                        _LOGGER.error("HTML instead of JSON from %s", url)
+                        _LOGGER.error(
+                            "HTML instead of JSON from %s (HTTP %s)",
+                            url,
+                            response.status,
+                        )
                         return None
 
                 if response.status not in (200, 201, 204):
