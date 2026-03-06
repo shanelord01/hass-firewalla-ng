@@ -78,10 +78,6 @@ class _FirewallaBinarySensor(CoordinatorEntity[FirewallaCoordinator], BinarySens
 
     _attr_has_entity_name = True
 
-    @property
-    def entity_registry_enabled_default(self) -> bool:
-        return True
-
 
 # ---------------------------------------------------------------------------
 # Box online
