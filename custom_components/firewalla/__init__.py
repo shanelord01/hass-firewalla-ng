@@ -29,7 +29,6 @@ from .const import (
     DOMAIN,
     PLATFORMS,
     SERVICE_DELETE_ALARM,
-    SERVICE_DELETE_DEVICE,
     SERVICE_RENAME_DEVICE,
     SERVICE_SEARCH_ALARMS,
     SERVICE_SEARCH_FLOWS,
@@ -113,7 +112,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if not remaining:
             for svc in (
                 SERVICE_DELETE_ALARM,
-                SERVICE_DELETE_DEVICE,
                 SERVICE_RENAME_DEVICE,
                 SERVICE_SEARCH_ALARMS,
                 SERVICE_SEARCH_FLOWS,
@@ -184,7 +182,6 @@ async def async_remove_config_entry_device(
             fw_device_id,
         )
 
-    # Always allow HA registry removal — covers stale/offline devices
     return True
 
 
@@ -327,83 +324,6 @@ def _async_register_services(hass: HomeAssistant) -> None:
         schema=vol.Schema({}),
     )
 
-    # -- delete_device -----------------------------------------------
-
-    async def _handle_delete_device(call: ServiceCall) -> None:
-        device_ids = call.data.get("device_id", [])
-        if isinstance(device_ids, str):
-            device_ids = [device_ids]
-
-        dev_reg = dr.async_get(hass)
-
-        for ha_device_id in device_ids:
-            device_entry = dev_reg.async_get(ha_device_id)
-            if not device_entry:
-                _LOGGER.error("Device %s not found", ha_device_id)
-                continue
-
-            # Extract the Firewalla device identifier from the HA device
-            fw_device_id: str | None = None
-            for domain, identifier in device_entry.identifiers:
-                if domain != DOMAIN:
-                    continue
-                if identifier.startswith("box_"):
-                    continue  # Skip box identifiers
-                fw_device_id = identifier
-
-            if not fw_device_id:
-                _LOGGER.error(
-                    "Cannot find Firewalla device ID for HA device %s",
-                    ha_device_id,
-                )
-                continue
-
-            # Find box_id and client from coordinator data
-            client: FirewallaApiClient | None = None
-            fw_box_id: str | None = None
-            for cfg in hass.config_entries.async_entries(DOMAIN):
-                if not hasattr(cfg, "runtime_data"):
-                    continue
-                coord = cfg.runtime_data.coordinator
-                if not coord.data:
-                    continue
-                device_data = next(
-                    (
-                        d
-                        for d in coord.data.get("devices", [])
-                        if d.get("id") == fw_device_id
-                    ),
-                    None,
-                )
-                if device_data:
-                    fw_box_id = device_data.get("gid") or device_data.get("boxId")
-                    client = cfg.runtime_data.client
-                    break
-
-            if not fw_box_id or not client:
-                _LOGGER.error(
-                    "Cannot determine box ID for device %s", fw_device_id
-                )
-                continue
-
-            if await client.async_delete_device(fw_box_id, fw_device_id):
-                _LOGGER.info(
-                    "Deleted device %s from box %s", fw_device_id, fw_box_id
-                )
-            else:
-                _LOGGER.error(
-                    "Failed to delete device %s from box %s",
-                    fw_device_id,
-                    fw_box_id,
-                )
-
-    hass.services.async_register(
-        DOMAIN,
-        SERVICE_DELETE_DEVICE,
-        _handle_delete_device,
-        schema=vol.Schema({}),
-    )
-
     # -- rename_device -----------------------------------------------
 
     async def _handle_rename_device(call: ServiceCall) -> None:
@@ -423,9 +343,8 @@ def _async_register_services(hass: HomeAssistant) -> None:
                 _LOGGER.error("Device %s not found", ha_device_id)
                 continue
 
-            # Extract the Firewalla identifiers from the HA device
+            # Extract the Firewalla device ID from the HA device identifiers
             fw_device_id: str | None = None
-            fw_box_id: str | None = None
             for domain, identifier in device_entry.identifiers:
                 if domain != DOMAIN:
                     continue
@@ -442,6 +361,7 @@ def _async_register_services(hass: HomeAssistant) -> None:
 
             # Find box_id from the device's via_device or coordinator data
             client: FirewallaApiClient | None = None
+            fw_box_id: str | None = None
             for cfg in hass.config_entries.async_entries(DOMAIN):
                 if not hasattr(cfg, "runtime_data"):
                     continue
