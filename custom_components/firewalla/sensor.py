@@ -256,7 +256,11 @@ class FirewallaTotalUploadSensor(_FirewallaSensor):
 
 
 class FirewallaAlarmCountSensor(CoordinatorEntity[FirewallaCoordinator], SensorEntity):
-    """Summary sensor: number of active alarms across the MSP account."""
+    """Summary sensor: number of active alarms across the MSP account.
+
+    Attached to the 'Firewalla MSP' service device alongside other MSP-wide
+    aggregate sensors (online/offline box counts, total rules).
+    """
 
     _attr_has_entity_name = True
     _attr_icon = "mdi:shield-alert"
@@ -266,13 +270,15 @@ class FirewallaAlarmCountSensor(CoordinatorEntity[FirewallaCoordinator], SensorE
     def __init__(self, coordinator: FirewallaCoordinator) -> None:
         super().__init__(coordinator)
         self._attr_unique_id = f"{DOMAIN}_alarm_count_{coordinator.config_entry.entry_id}"
-
-        boxes = coordinator.data.get("boxes", []) if coordinator.data else []
-        box_id = boxes[0].get("id", "global") if boxes else "global"
+        # Fix #2: attach to the MSP service device, not the first box.
+        # Alarm count is an account-wide aggregate — it belongs alongside the
+        # other MSP stats sensors, not on an individual box device card.
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, f"box_{box_id}")},
-            name=box_display_name(boxes[0]) if boxes else "Firewalla",
+            identifiers={(DOMAIN, f"msp_global_{coordinator.config_entry.entry_id}")},
+            name="Firewalla MSP",
             manufacturer="Firewalla",
+            model="MSP",
+            entry_type=DeviceEntryType.SERVICE,
         )
 
     @property
@@ -338,10 +344,18 @@ class FirewallaFlowSensor(CoordinatorEntity[FirewallaCoordinator], SensorEntity)
                 identifiers={(DOMAIN, device["id"])},
             )
         else:
+            # Fix #5: prefer the flow's own gid/boxId over falling back to
+            # boxes[0]. In multi-box installs, pinning all unmatched flows to
+            # the first box regardless of origin is misleading.
             boxes = coordinator.data.get("boxes", []) if coordinator.data else []
-            box_id = boxes[0].get("id", "global") if boxes else "global"
+            flow_box_gid = flow.get("gid") or flow.get("boxId")
+            fallback_box_id = (
+                flow_box_gid
+                if flow_box_gid
+                else (boxes[0].get("id", "global") if boxes else "global")
+            )
             self._attr_device_info = DeviceInfo(
-                identifiers={(DOMAIN, f"box_{box_id}")},
+                identifiers={(DOMAIN, f"box_{fallback_box_id}")},
             )
 
     @property
@@ -374,19 +388,15 @@ class FirewallaMspBaseSensor(CoordinatorEntity[FirewallaCoordinator], SensorEnti
     These attach to a virtual 'Firewalla MSP' service device rather than any
     individual box, using DeviceEntryType.SERVICE as recommended by HA for
     cloud/account-level entities.
+
+    Fix #1: DeviceInfo is built per-instance (scoped to entry_id) rather than
+    as a class-level variable. The class-level approach caused multi-account
+    installs to share a single 'Firewalla MSP' device card — sensors from both
+    accounts would appear on it with identical names, duplicating readings.
     """
 
     _attr_has_entity_name = True
     _attr_state_class = SensorStateClass.MEASUREMENT
-
-    # Shared DeviceInfo for all MSP sensors — built once on first instantiation
-    _MSP_DEVICE_INFO = DeviceInfo(
-        identifiers={(DOMAIN, "msp_global")},
-        name="Firewalla MSP",
-        manufacturer="Firewalla",
-        model="MSP",
-        entry_type=DeviceEntryType.SERVICE,
-    )
 
     def __init__(
         self,
@@ -402,7 +412,15 @@ class FirewallaMspBaseSensor(CoordinatorEntity[FirewallaCoordinator], SensorEnti
         # are configured — without it both entries generate identical unique_ids
         # and HA silently drops the second account's sensors.
         self._attr_unique_id = f"{DOMAIN}_msp_{key}_{coordinator.config_entry.entry_id}"
-        self._attr_device_info = self._MSP_DEVICE_INFO
+        # Scope the device identifier to the entry so each MSP account gets its
+        # own 'Firewalla MSP' device card in the HA device registry.
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"msp_global_{coordinator.config_entry.entry_id}")},
+            name="Firewalla MSP",
+            manufacturer="Firewalla",
+            model="MSP",
+            entry_type=DeviceEntryType.SERVICE,
+        )
 
     @property
     def native_value(self) -> int | None:
@@ -481,7 +499,17 @@ class FirewallaTargetListSensor(CoordinatorEntity[FirewallaCoordinator], SensorE
         # Use the TL name as the entity name within the MSP device
         self._attr_name = tl.get("name", self._tl_id)
 
-        self._attr_device_info = FirewallaMspBaseSensor._MSP_DEVICE_INFO
+        # Fix #1 (downstream): build DeviceInfo inline rather than referencing
+        # the former FirewallaMspBaseSensor._MSP_DEVICE_INFO class variable,
+        # which has been removed. Entry-scoped identifier keeps this sensor on
+        # the correct per-account 'Firewalla MSP' device card.
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"msp_global_{coordinator.config_entry.entry_id}")},
+            name="Firewalla MSP",
+            manufacturer="Firewalla",
+            model="MSP",
+            entry_type=DeviceEntryType.SERVICE,
+        )
 
     def _get_tl(self) -> dict[str, Any] | None:
         """Find this target list in the latest coordinator data."""
