@@ -73,16 +73,21 @@ async def async_setup_entry(
     # sides to ensure reliable matching regardless of how the devices endpoint
     # returns MAC addresses.
     if enable_flows:
+        # Pre-build a lookup dict keyed by uppercased device ID so flow→device
+        # matching is O(1) per flow instead of O(N) — significant when there
+        # are many flows and devices.
+        device_by_id: dict[str, dict[str, Any]] = {
+            d["id"].upper(): d
+            for d in devices
+            if isinstance(d, dict) and "id" in d
+        }
+
         for flow in coordinator.data.get("flows", []):
             if isinstance(flow, dict) and "id" in flow:
                 flow_device_id = (flow.get("device") or {}).get("id", "").upper()
-                flow_device = next(
-                    (
-                        d for d in devices
-                        if isinstance(d, dict) and d.get("id", "").upper() == flow_device_id
-                    ),
-                    None,
-                ) if flow_device_id else None
+                flow_device = (
+                    device_by_id.get(flow_device_id) if flow_device_id else None
+                )
                 entities.append(FirewallaFlowSensor(coordinator, flow, flow_device))
 
     # Alarm summary sensor (optional)
