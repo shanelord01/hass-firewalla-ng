@@ -146,6 +146,14 @@ class FirewallaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if self._opt(flag):
                 try:
                     results[key] = await func() or []
+                except FirewallaAuthError as exc:
+                    # v2.4.9: Auth errors must propagate even from optional
+                    # endpoints — otherwise a revoked token is silently ignored
+                    # until the next core data fetch, and the user never sees
+                    # a re-auth prompt.
+                    raise ConfigEntryAuthFailed(
+                        f"Invalid Firewalla API token — re-enter your credentials: {exc}"
+                    ) from exc
                 except Exception as exc:  # noqa: BLE001
                     _LOGGER.warning("Could not fetch %s: %s", key, exc)
                     if self.data:
@@ -155,6 +163,11 @@ class FirewallaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         stats_simple: dict[str, Any] = {}
         try:
             stats_simple = await self._client.get_simple_stats()
+        except FirewallaAuthError as exc:
+            # v2.4.9: Same auth propagation as optional fetches above.
+            raise ConfigEntryAuthFailed(
+                f"Invalid Firewalla API token — re-enter your credentials: {exc}"
+            ) from exc
         except Exception as exc:  # noqa: BLE001
             _LOGGER.warning("Could not fetch stats/simple: %s", exc)
             if self.data:
@@ -198,6 +211,14 @@ class FirewallaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """
         boxes = await self._client.get_boxes()
         devices = await self._client.get_devices()
+
+        # v2.4.9: get_boxes/get_devices now return None on API failure
+        # (distinct from [] for a genuine empty response). Coerce to empty
+        # list for downstream processing.
+        if boxes is None:
+            boxes = []
+        if devices is None:
+            devices = []
 
         if not boxes and not devices:
             raise UpdateFailed("Both boxes and devices endpoints returned empty — possible API failure")
