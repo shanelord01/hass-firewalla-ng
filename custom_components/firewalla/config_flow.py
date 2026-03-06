@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any
 
 import voluptuous as vol
@@ -35,6 +36,21 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+# v2.4.9: RFC-952/1123 subdomain pattern — prevents control characters, spaces,
+# and URL-significant characters from reaching the URL constructor.
+_SUBDOMAIN_RE = re.compile(r"^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$")
+
+
+def _validate_subdomain(value: str) -> str:
+    """Validate that a subdomain contains only legal hostname characters."""
+    value = value.strip().lower()
+    if not _SUBDOMAIN_RE.match(value):
+        raise vol.Invalid(
+            "Subdomain must be 1-63 alphanumeric characters or hyphens, "
+            "starting and ending with a letter or digit."
+        )
+    return value
 
 
 class FirewallaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -71,10 +87,13 @@ class FirewallaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 _LOGGER.exception("Error during Firewalla credential check")
                 errors["base"] = "cannot_connect"
             else:
-                # get_boxes() returns [] on API failure (never None), so check
-                # truthiness — an empty list means either bad credentials or
-                # a genuine account with zero boxes (extremely unlikely).
-                if boxes:
+                # v2.4.9: get_boxes() returns None on API failure (network
+                # error, server error, unexpected response) and [] on a
+                # genuine empty-but-valid account. Distinguish the two so
+                # the user sees the correct error message.
+                if boxes is None:
+                    errors["base"] = "cannot_connect"
+                elif boxes:
                     self._boxes = boxes
                     self._user_input = user_input
 
@@ -84,6 +103,7 @@ class FirewallaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
                     return await self.async_step_select_boxes()
                 else:
+                    # Genuine empty list — valid credentials but zero boxes
                     errors["base"] = "invalid_auth"
 
         schema = vol.Schema(
@@ -91,7 +111,7 @@ class FirewallaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required(
                     CONF_SUBDOMAIN,
                     default=(user_input or {}).get(CONF_SUBDOMAIN, DEFAULT_SUBDOMAIN),
-                ): str,
+                ): vol.All(str, _validate_subdomain),
                 vol.Required(CONF_API_TOKEN): str,
                 vol.Optional(
                     CONF_SCAN_INTERVAL,
