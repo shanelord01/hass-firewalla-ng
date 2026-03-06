@@ -8,6 +8,7 @@ delete_alarm:
     entity:
       integration: firewalla
       domain: binary_sensor
+      device_class: problem
 
 rename_device:
   name: Rename Device
