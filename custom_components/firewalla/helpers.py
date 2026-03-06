@@ -11,3 +11,14 @@ def box_display_name(box: dict) -> str:
     """
     name = box.get("name") or box.get("id", "Box")
     return name if "firewalla" in name.lower() else f"Firewalla {name}"
+
+
+def first_box_id(coordinator_data: dict | None) -> str:
+    """Return the ID of the first known box, or 'unknown' if none.
+
+    Used as a fallback device attachment point for rules and alarms
+    that don't carry a gid field.  Accepts coordinator.data directly
+    to avoid importing FirewallaCoordinator and creating a circular dep.
+    """
+    boxes = coordinator_data.get("boxes", []) if coordinator_data else []
+    return boxes[0].get("id", "unknown") if boxes else "unknown"
