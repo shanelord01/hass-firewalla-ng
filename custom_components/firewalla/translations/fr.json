@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Connexion à Firewalla MSP",
-        "description": "Entrez votre sous-domaine Firewalla MSP (la partie avant .firewalla.net) et votre jeton d'accès personnel.\n\nCréez un jeton dans **Paramètres du compte → Créer un nouveau jeton** dans votre portail MSP.",
+        "description": "Saisissez votre sous-domaine Firewalla MSP (la partie avant .firewalla.net) et votre jeton d'accès personnel.\n\nCréez un jeton sous **Paramètres du compte → Créer un nouveau jeton** dans votre portail MSP.",
         "data": {
           "subdomain": "Sous-domaine MSP",
           "api_token": "Jeton API",
@@ -16,7 +16,7 @@
           "enable_target_lists": "Activer les capteurs de listes cibles"
         },
         "data_description": {
-          "subdomain": "p. ex. 'monentreprise' pour monentreprise.firewalla.net",
+          "subdomain": "ex. 'masociete' pour masociete.firewalla.net",
           "scan_interval": "Minimum 30s. Recommandé 300s (5 min).",
           "enable_flows": "Crée un capteur pour chaque flux réseau récent. Peut générer un grand nombre d'entités.",
           "enable_traffic": "Ajoute des compteurs de téléchargement/envoi par appareil.",
@@ -25,19 +25,20 @@
       },
       "select_boxes": {
         "title": "Sélectionner les Box",
-        "description": "Choisissez les Firewalla Box à surveiller dans Home Assistant. Tous les Box sont sélectionnés par défaut.",
+        "description": "Choisissez quelles Firewalla Box surveiller dans Home Assistant. Tous les Box sont sélectionnés par défaut.",
         "data": {
           "box_filter": "Box à surveiller"
         },
         "data_description": {
-          "box_filter": "Désélectionnez les Box que vous ne souhaitez pas voir dans Home Assistant."
+          "box_filter": "Décochez les Box que vous ne souhaitez pas voir dans Home Assistant."
         }
       }
     },
     "error": {
       "invalid_auth": "Échec de l'authentification – vérifiez votre sous-domaine et votre jeton API.",
       "cannot_connect": "Impossible de joindre l'API Firewalla. Vérifiez votre réseau et votre sous-domaine.",
-      "no_boxes": "Authentification réussie mais aucun Box n'est attribué à ce compte MSP."
+      "no_boxes": "Authentification réussie mais aucun Box n'est attribué à ce compte MSP.",
+      "invalid_subdomain": "Le sous-domaine doit contenir 1 à 63 caractères alphanumériques ou tirets, commençant et se terminant par une lettre ou un chiffre."
     },
     "abort": {
       "already_configured": "Ce compte Firewalla MSP est déjà configuré."

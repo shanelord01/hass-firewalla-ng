@@ -37,7 +37,8 @@
     "error": {
       "invalid_auth": "Authenticatie mislukt – controleer je subdomein en API-token.",
       "cannot_connect": "Kan de Firewalla-API niet bereiken. Controleer je netwerk en subdomein.",
-      "no_boxes": "Authenticatie geslaagd maar er zijn geen boxen toegewezen aan dit MSP-account."
+      "no_boxes": "Authenticatie geslaagd maar er zijn geen boxen toegewezen aan dit MSP-account.",
+      "invalid_subdomain": "Het subdomein moet 1-63 alfanumerieke tekens of koppeltekens bevatten en beginnen en eindigen met een letter of cijfer."
     },
     "abort": {
       "already_configured": "Dit Firewalla MSP-account is al geconfigureerd."
@@ -62,7 +63,7 @@
           "stale_days": "Apparaten die zo lang niet door de API zijn gemeld, worden uit Home Assistant verwijderd.",
           "enable_flows": "Maakt een sensor per recente verkeersstroom. Kan veel entiteiten genereren.",
           "enable_traffic": "Voegt download-/uploadsensoren per apparaat toe.",
-          "box_filter": "Selecteer welke Firewalla-boxen je wilt monitoren. Standaard zijn alle boxen opgenomen.",
+          "box_filter": "Selecteer welke Firewalla-boxen je wilt monitoren. Alle boxen zijn standaard inbegrepen.",
           "enable_target_lists": "Maakt een sensor per doellijst. Elke sensor toont het aantal items met domeinen/IP's in attributen."
         }
       }

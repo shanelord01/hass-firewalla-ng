@@ -37,7 +37,8 @@
     "error": {
       "invalid_auth": "Autenticazione fallita – controlla sottodominio e token API.",
       "cannot_connect": "Impossibile raggiungere l'API Firewalla. Controlla rete e sottodominio.",
-      "no_boxes": "Autenticazione riuscita ma nessun box è assegnato a questo account MSP."
+      "no_boxes": "Autenticazione riuscita ma nessun box è assegnato a questo account MSP.",
+      "invalid_subdomain": "Il sottodominio deve contenere 1-63 caratteri alfanumerici o trattini, iniziando e terminando con una lettera o una cifra."
     },
     "abort": {
       "already_configured": "Questo account Firewalla MSP è già configurato."
@@ -60,7 +61,7 @@
         },
         "data_description": {
           "stale_days": "I dispositivi assenti dall'API per questo numero di giorni verranno rimossi da Home Assistant.",
-          "enable_flows": "Crea un sensore per flusso di traffico recente. Può generare molte entità.",
+          "enable_flows": "Crea un sensore per ogni flusso di traffico recente. Può generare molte entità.",
           "enable_traffic": "Aggiunge sensori download/upload per dispositivo.",
           "box_filter": "Seleziona quali box Firewalla monitorare. Tutti i box sono inclusi per impostazione predefinita.",
           "enable_target_lists": "Crea un sensore per lista di destinazione. Ogni sensore mostra il conteggio delle voci con domini/IP negli attributi."

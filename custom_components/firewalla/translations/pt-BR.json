@@ -37,7 +37,8 @@
     "error": {
       "invalid_auth": "Falha na autenticação – verifique seu subdomínio e token API.",
       "cannot_connect": "Não foi possível acessar a API do Firewalla. Verifique sua rede e subdomínio.",
-      "no_boxes": "Autenticação bem-sucedida, mas nenhum Box está atribuído a esta conta MSP."
+      "no_boxes": "Autenticação bem-sucedida, mas nenhum Box está atribuído a esta conta MSP.",
+      "invalid_subdomain": "O subdomínio deve ter entre 1 e 63 caracteres alfanuméricos ou hífens, começando e terminando com uma letra ou dígito."
     },
     "abort": {
       "already_configured": "Esta conta Firewalla MSP já está configurada."

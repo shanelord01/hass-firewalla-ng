@@ -37,7 +37,8 @@
     "error": {
       "invalid_auth": "认证失败 - 请检查子域名和 API 令牌。",
       "cannot_connect": "无法连接到 Firewalla API。请检查网络和子域名。",
-      "no_boxes": "认证成功，但此 MSP 账户没有分配任何 Box。"
+      "no_boxes": "认证成功，但此 MSP 账户没有分配任何 Box。",
+      "invalid_subdomain": "子域名必须为 1-63 个字母数字字符或连字符，且以字母或数字开头和结尾。"
     },
     "abort": {
       "already_configured": "此 Firewalla MSP 账户已配置。"
