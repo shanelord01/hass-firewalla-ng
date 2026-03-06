@@ -112,13 +112,9 @@ async def async_setup_entry(
 
 
 class _FirewallaSensor(CoordinatorEntity[FirewallaCoordinator], SensorEntity):
-    """Shared base for all Firewalla sensors."""
+    """Shared base for all Firewalla per-device sensors."""
 
     _attr_has_entity_name = True
-
-    @property
-    def entity_registry_enabled_default(self) -> bool:
-        return True
 
     def __init__(
         self,
@@ -160,9 +156,6 @@ class _FirewallaSensor(CoordinatorEntity[FirewallaCoordinator], SensorEntity):
 class FirewallaIpAddressSensor(_FirewallaSensor):
     """Current IP address of a network device."""
 
-    _attr_icon = "mdi:ip-network"
-    _attr_translation_key = "ip_address"
-
     def __init__(self, coordinator: FirewallaCoordinator, device: dict[str, Any]) -> None:
         super().__init__(coordinator, device, "ip_address")
 
@@ -174,9 +167,6 @@ class FirewallaIpAddressSensor(_FirewallaSensor):
 
 class FirewallaMacAddressSensor(_FirewallaSensor):
     """MAC address of a network device."""
-
-    _attr_icon = "mdi:ethernet"
-    _attr_translation_key = "mac_address"
 
     def __init__(self, coordinator: FirewallaCoordinator, device: dict[str, Any]) -> None:
         super().__init__(coordinator, device, "mac_address")
@@ -192,9 +182,6 @@ class FirewallaMacAddressSensor(_FirewallaSensor):
 
 class FirewallaNetworkNameSensor(_FirewallaSensor):
     """Name of the network the device belongs to."""
-
-    _attr_icon = "mdi:lan"
-    _attr_translation_key = "network_name"
 
     def __init__(self, coordinator: FirewallaCoordinator, device: dict[str, Any]) -> None:
         super().__init__(coordinator, device, "network_name")
@@ -218,7 +205,6 @@ class FirewallaTotalDownloadSensor(_FirewallaSensor):
     _attr_device_class = SensorDeviceClass.DATA_SIZE
     _attr_state_class = SensorStateClass.TOTAL_INCREASING
     _attr_native_unit_of_measurement = UnitOfInformation.KILOBYTES
-    _attr_translation_key = "total_download"
 
     def __init__(self, coordinator: FirewallaCoordinator, device: dict[str, Any]) -> None:
         super().__init__(coordinator, device, "total_download")
@@ -237,7 +223,6 @@ class FirewallaTotalUploadSensor(_FirewallaSensor):
     _attr_device_class = SensorDeviceClass.DATA_SIZE
     _attr_state_class = SensorStateClass.TOTAL_INCREASING
     _attr_native_unit_of_measurement = UnitOfInformation.KILOBYTES
-    _attr_translation_key = "total_upload"
 
     def __init__(self, coordinator: FirewallaCoordinator, device: dict[str, Any]) -> None:
         super().__init__(coordinator, device, "total_upload")
@@ -263,16 +248,12 @@ class FirewallaAlarmCountSensor(CoordinatorEntity[FirewallaCoordinator], SensorE
     """
 
     _attr_has_entity_name = True
-    _attr_icon = "mdi:shield-alert"
     _attr_translation_key = "alarm_count"
     _attr_state_class = SensorStateClass.MEASUREMENT
 
     def __init__(self, coordinator: FirewallaCoordinator) -> None:
         super().__init__(coordinator)
         self._attr_unique_id = f"{DOMAIN}_alarm_count_{coordinator.config_entry.entry_id}"
-        # Fix #2: attach to the MSP service device, not the first box.
-        # Alarm count is an account-wide aggregate — it belongs alongside the
-        # other MSP stats sensors, not on an individual box device card.
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"msp_global_{coordinator.config_entry.entry_id}")},
             name="Firewalla MSP",
@@ -280,10 +261,6 @@ class FirewallaAlarmCountSensor(CoordinatorEntity[FirewallaCoordinator], SensorE
             model="MSP",
             entry_type=DeviceEntryType.SERVICE,
         )
-
-    @property
-    def entity_registry_enabled_default(self) -> bool:
-        return True
 
     @property
     def native_value(self) -> int:
@@ -344,9 +321,9 @@ class FirewallaFlowSensor(CoordinatorEntity[FirewallaCoordinator], SensorEntity)
                 identifiers={(DOMAIN, device["id"])},
             )
         else:
-            # Fix #5: prefer the flow's own gid/boxId over falling back to
-            # boxes[0]. In multi-box installs, pinning all unmatched flows to
-            # the first box regardless of origin is misleading.
+            # Prefer the flow's own gid/boxId over falling back to boxes[0].
+            # In multi-box installs, pinning all unmatched flows to the first
+            # box regardless of origin is misleading.
             boxes = coordinator.data.get("boxes", []) if coordinator.data else []
             flow_box_gid = flow.get("gid") or flow.get("boxId")
             fallback_box_id = (
@@ -357,10 +334,6 @@ class FirewallaFlowSensor(CoordinatorEntity[FirewallaCoordinator], SensorEntity)
             self._attr_device_info = DeviceInfo(
                 identifiers={(DOMAIN, f"box_{fallback_box_id}")},
             )
-
-    @property
-    def entity_registry_enabled_default(self) -> bool:
-        return True
 
     @property
     def native_value(self) -> float | None:
@@ -389,10 +362,9 @@ class FirewallaMspBaseSensor(CoordinatorEntity[FirewallaCoordinator], SensorEnti
     individual box, using DeviceEntryType.SERVICE as recommended by HA for
     cloud/account-level entities.
 
-    Fix #1: DeviceInfo is built per-instance (scoped to entry_id) rather than
-    as a class-level variable. The class-level approach caused multi-account
-    installs to share a single 'Firewalla MSP' device card — sensors from both
-    accounts would appear on it with identical names, duplicating readings.
+    DeviceInfo is built per-instance (scoped to entry_id) rather than as a
+    class-level variable. The class-level approach caused multi-account installs
+    to share a single 'Firewalla MSP' device card.
     """
 
     _attr_has_entity_name = True
@@ -432,16 +404,12 @@ class FirewallaMspBaseSensor(CoordinatorEntity[FirewallaCoordinator], SensorEnti
 class FirewallaMspOnlineBoxesSensor(FirewallaMspBaseSensor):
     """Number of Firewalla boxes currently online across the MSP account."""
 
-    _attr_icon = "mdi:router-wireless"
-
     def __init__(self, coordinator: FirewallaCoordinator) -> None:
         super().__init__(coordinator, "onlineBoxes", "msp_online_boxes")
 
 
 class FirewallaMspOfflineBoxesSensor(FirewallaMspBaseSensor):
     """Number of Firewalla boxes currently offline across the MSP account."""
-
-    _attr_icon = "mdi:router-wireless-off"
 
     def __init__(self, coordinator: FirewallaCoordinator) -> None:
         super().__init__(coordinator, "offlineBoxes", "msp_offline_boxes")
@@ -450,16 +418,12 @@ class FirewallaMspOfflineBoxesSensor(FirewallaMspBaseSensor):
 class FirewallaMspTotalAlarmsSensor(FirewallaMspBaseSensor):
     """Total active alarms across the MSP account."""
 
-    _attr_icon = "mdi:shield-alert"
-
     def __init__(self, coordinator: FirewallaCoordinator) -> None:
         super().__init__(coordinator, "alarms", "msp_total_alarms")
 
 
 class FirewallaMspTotalRulesSensor(FirewallaMspBaseSensor):
     """Total firewall rules across the MSP account."""
-
-    _attr_icon = "mdi:shield-half-full"
 
     def __init__(self, coordinator: FirewallaCoordinator) -> None:
         super().__init__(coordinator, "rules", "msp_total_rules")
@@ -483,7 +447,6 @@ class FirewallaTargetListSensor(CoordinatorEntity[FirewallaCoordinator], SensorE
     _attr_has_entity_name = True
     _attr_translation_key = "target_list"
     _attr_state_class = SensorStateClass.MEASUREMENT
-    _attr_icon = "mdi:format-list-bulleted"
     _attr_native_unit_of_measurement = "entries"
 
     def __init__(
@@ -499,10 +462,8 @@ class FirewallaTargetListSensor(CoordinatorEntity[FirewallaCoordinator], SensorE
         # Use the TL name as the entity name within the MSP device
         self._attr_name = tl.get("name", self._tl_id)
 
-        # Fix #1 (downstream): build DeviceInfo inline rather than referencing
-        # the former FirewallaMspBaseSensor._MSP_DEVICE_INFO class variable,
-        # which has been removed. Entry-scoped identifier keeps this sensor on
-        # the correct per-account 'Firewalla MSP' device card.
+        # Entry-scoped identifier keeps this sensor on the correct per-account
+        # 'Firewalla MSP' device card.
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"msp_global_{coordinator.config_entry.entry_id}")},
             name="Firewalla MSP",
@@ -565,7 +526,3 @@ class FirewallaTargetListSensor(CoordinatorEntity[FirewallaCoordinator], SensorE
             "targets": tl.get("targets", []),
             "last_updated": last_updated_iso,
         }
-
-    @property
-    def entity_registry_enabled_default(self) -> bool:
-        return True
