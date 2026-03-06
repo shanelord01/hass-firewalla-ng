@@ -79,10 +79,6 @@ class FirewallaDeviceTracker(CoordinatorEntity[FirewallaCoordinator], ScannerEnt
         )
 
     @property
-    def entity_registry_enabled_default(self) -> bool:
-        return True
-
-    @property
     def source_type(self) -> SourceType:
         return SourceType.ROUTER
 
