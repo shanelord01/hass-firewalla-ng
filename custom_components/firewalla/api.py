@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import aiohttp
@@ -217,11 +217,13 @@ class FirewallaApiClient:
             # Synthesise 'mac' from 'id' — MSP device ID is the MAC address
             if "mac" not in device and ":" in device.get("id", ""):
                 device["mac"] = device["id"]
-            # Derive online status from lastActiveTimestamp if missing
+            # Derive online status from lastActiveTimestamp if missing.
+            # Use UTC explicitly — naive datetime.now() produces local time
+            # and gives wrong results when the HA host timezone is not UTC.
             if "online" not in device:
                 last_active = device.get("lastActiveTimestamp")
                 if last_active:
-                    now_ms = datetime.now().timestamp() * 1000
+                    now_ms = datetime.now(tz=timezone.utc).timestamp() * 1000
                     device["online"] = (now_ms - last_active) < (15 * 60 * 1000)
                 else:
                     device["online"] = False
@@ -348,6 +350,24 @@ class FirewallaApiClient:
             return False
         return result is not None
 
+    async def async_delete_device(self, box_id: str, device_id: str) -> bool:
+        """DELETE /v2/boxes/:boxId/devices/:deviceId — remove a device from Firewalla.
+
+        Permanently removes the device record from the Firewalla box.
+        Returns True on success (HTTP 200/204), False otherwise.
+        """
+        try:
+            result = await self._api_request(
+                "DELETE",
+                f"boxes/{box_id}/devices/{device_id}",
+            )
+        except FirewallaAuthError:
+            raise
+        except Exception as exc:  # noqa: BLE001
+            _LOGGER.error("Error deleting device %s/%s: %s", box_id, device_id, exc)
+            return False
+        return result is not None
+
     async def async_pause_rule(self, rule_id: str) -> bool:
         """POST /v2/rules/:id/pause — pause an active rule.
 
@@ -433,7 +453,6 @@ class FirewallaApiClient:
     ) -> dict[str, Any]:
         """Generic cursor-paginated search for alarms/flows."""
         all_results: list[dict[str, Any]] = []
-        total_count = 0
         params: dict[str, Any] = {"query": query, "limit": limit}
 
         for _page in range(max_pages):
@@ -451,7 +470,6 @@ class FirewallaApiClient:
             results = result.get("results", [])
             if isinstance(results, list):
                 all_results.extend(results)
-            total_count = result.get("count", total_count)
 
             next_cursor = result.get("next_cursor")
             if not next_cursor:
