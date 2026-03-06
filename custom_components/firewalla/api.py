@@ -108,11 +108,11 @@ class FirewallaApiClient:
                     )
                     return None
 
-                # Fix #3: detect unexpected HTML (e.g. WAF block page, reverse
-                # proxy error, login redirect) after handling auth/rate-limit
-                # status codes. Include the HTTP status code in the log message
-                # so operators can distinguish a 403 WAF block from a 503
-                # maintenance page — previously the status was silently dropped.
+                # Detect unexpected HTML (e.g. WAF block page, reverse proxy
+                # error, login redirect) after handling auth/rate-limit status
+                # codes. Include the HTTP status code in the log message so
+                # operators can distinguish a 403 WAF block from a 503
+                # maintenance page.
                 ct = response.headers.get("Content-Type", "")
                 if "text/html" in ct:
                     body = await response.text()
@@ -140,8 +140,16 @@ class FirewallaApiClient:
                     _LOGGER.error("Invalid JSON from %s: %s", url, body)
                     return None
 
-                # Unwrap {"data": [...]} envelope if present
-                if isinstance(result, dict) and "data" in result and not isinstance(result.get("data"), (int, float, str, bool)):
+                # Unwrap {"data": [...]} or {"data": {...}} envelope if present.
+                # v2.4.9: Use positive type check (list/dict) instead of negative
+                # exclusion. This prevents unwrapping {"data": null} as a valid
+                # result — callers checking `if result is None` would otherwise
+                # misinterpret it as a failed request.
+                if (
+                    isinstance(result, dict)
+                    and "data" in result
+                    and isinstance(result["data"], (list, dict))
+                ):
                     return result["data"]
 
                 return result
@@ -162,22 +170,28 @@ class FirewallaApiClient:
     # Core data endpoints
     # ------------------------------------------------------------------
 
-    async def get_boxes(self) -> list[dict[str, Any]]:
-        """GET /v2/boxes — list all Firewalla boxes."""
+    async def get_boxes(self) -> list[dict[str, Any]] | None:
+        """GET /v2/boxes — list all Firewalla boxes.
+
+        Returns
+        -------
+        list  — boxes from the API (may be empty for a genuine zero-box account).
+        None  — API call failed (network error, server error, unexpected response).
+        """
         try:
             result = await self._api_request("GET", "boxes")
         except FirewallaAuthError:
             raise
         except Exception as exc:  # noqa: BLE001
             _LOGGER.error("Error getting boxes: %s", exc)
-            return []
+            return None
 
         if result is None:
-            return []
+            return None
 
         if not isinstance(result, list):
             _LOGGER.warning("get_boxes: unexpected type %s", type(result))
-            return []
+            return None
 
         processed: list[dict[str, Any]] = []
         for box in result:
@@ -195,22 +209,28 @@ class FirewallaApiClient:
         _LOGGER.debug("Retrieved %d boxes", len(processed))
         return processed
 
-    async def get_devices(self) -> list[dict[str, Any]]:
-        """GET /v2/devices — list all devices across all networks."""
+    async def get_devices(self) -> list[dict[str, Any]] | None:
+        """GET /v2/devices — list all devices across all networks.
+
+        Returns
+        -------
+        list  — devices from the API (may be empty if no devices are registered).
+        None  — API call failed (network error, server error, unexpected response).
+        """
         try:
             result = await self._api_request("GET", "devices")
         except FirewallaAuthError:
             raise
         except Exception as exc:  # noqa: BLE001
             _LOGGER.error("Error getting devices: %s", exc)
-            return []
+            return None
 
         if result is None:
-            return []
+            return None
 
         if not isinstance(result, list):
             _LOGGER.warning("get_devices: unexpected type %s", type(result))
-            return []
+            return None
 
         processed: list[dict[str, Any]] = []
         for device in result:
