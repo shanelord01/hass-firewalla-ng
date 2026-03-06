@@ -54,6 +54,9 @@ class FirewallaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._device_last_seen: dict[str, datetime] = {}
         # Tracks which device ids have been present across all updates
         self._known_device_ids: set[str] = set()
+        # Device IDs present in the previous poll — used to detect
+        # the Present→Absent transition for store persistence.
+        self._last_poll_present: set[str] = set()
         # Persistent store — keyed per config entry so multi-account installs don't collide
         self._store: Store = Store(
             hass,
@@ -183,10 +186,19 @@ class FirewallaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # Update the seen-timestamp for every device in this poll
         now = dt_util.now()
         current_ids = {d["id"] for d in devices if isinstance(d, dict) and "id" in d}
-        newly_absent = self._known_device_ids - current_ids  # devices missing this poll
+
+        # Detect the Present→Absent transition: devices that were in the
+        # *previous* poll but are missing from *this* poll.  Using
+        # _last_poll_present (rather than the monotonically-growing
+        # _known_device_ids) ensures persistence fires only once — on the
+        # exact poll where a device disappears — not on every subsequent
+        # poll while it remains absent.
+        newly_absent = self._last_poll_present - current_ids if self._last_poll_present else set()
+
         for dev_id in current_ids:
             self._device_last_seen[dev_id] = now
         self._known_device_ids.update(current_ids)
+        self._last_poll_present = current_ids
 
         # Persist timestamps when devices go absent so stale tracking survives restarts.
         # Intentionally NOT written on every poll — many HA installs run on SD cards
@@ -300,8 +312,9 @@ class FirewallaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     async def _async_persist_timestamps(self) -> None:
         """Write current device-seen timestamps to persistent storage.
 
-        Only called when a device transitions to absent, keeping disk writes
-        minimal while ensuring stale-day counters survive HA restarts.
+        Only called on Present→Absent transitions or after stale removals,
+        keeping disk writes minimal while ensuring stale-day counters
+        survive HA restarts.
         """
         payload = {
             dev_id: ts.isoformat()
