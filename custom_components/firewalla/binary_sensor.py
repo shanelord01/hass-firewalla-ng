@@ -22,7 +22,7 @@ from .const import (
     DOMAIN,
 )
 from .coordinator import FirewallaCoordinator
-from .helpers import box_display_name
+from .helpers import box_display_name, first_box_id
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -113,6 +113,8 @@ class FirewallaBoxOnlineSensor(_FirewallaBinarySensor):
         self._update_state(box)
 
     def _get_box(self) -> dict[str, Any] | None:
+        if not self.coordinator.data:
+            return None
         return next(
             (
                 b
@@ -174,6 +176,8 @@ class FirewallaDeviceOnlineSensor(_FirewallaBinarySensor):
         self._update_state(device)
 
     def _get_device(self) -> dict[str, Any] | None:
+        if not self.coordinator.data:
+            return None
         return next(
             (
                 d
@@ -227,19 +231,16 @@ class FirewallaRuleActiveSensor(_FirewallaBinarySensor):
         )
         self._attr_name = f"{action}: {target}"
 
-        box_id = rule.get("gid") or self._first_box_id(coordinator)
+        box_id = rule.get("gid") or first_box_id(coordinator.data)
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"box_{box_id}")},
         )
         self._update_state(rule)
 
-    @staticmethod
-    def _first_box_id(coordinator: FirewallaCoordinator) -> str:
-        boxes = coordinator.data.get("boxes", []) if coordinator.data else []
-        return boxes[0].get("id", "unknown") if boxes else "unknown"
-
     @callback
     def _handle_coordinator_update(self) -> None:
+        if not self.coordinator.data:
+            return
         rule = next(
             (
                 r
@@ -283,19 +284,16 @@ class FirewallaAlarmSensor(_FirewallaBinarySensor):
         msg = alarm.get("message") or alarm.get("type") or self._alarm_id
         self._attr_name = f"Alarm: {msg[:40]}"
 
-        box_id = alarm.get("gid") or self._first_box_id(coordinator)
+        box_id = alarm.get("gid") or first_box_id(coordinator.data)
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"box_{box_id}")},
         )
         self._update_state(alarm)
 
-    @staticmethod
-    def _first_box_id(coordinator: FirewallaCoordinator) -> str:
-        boxes = coordinator.data.get("boxes", []) if coordinator.data else []
-        return boxes[0].get("id", "unknown") if boxes else "unknown"
-
     @callback
     def _handle_coordinator_update(self) -> None:
+        if not self.coordinator.data:
+            return
         alarm = next(
             (
                 a
@@ -314,7 +312,7 @@ class FirewallaAlarmSensor(_FirewallaBinarySensor):
         # Resolve linked device name from coordinator data for the attribute
         device_id = (alarm.get("device") or {}).get("id")
         device_name: str | None = None
-        if device_id:
+        if device_id and self.coordinator.data:
             matched = next(
                 (
                     d for d in self.coordinator.data.get("devices", [])
