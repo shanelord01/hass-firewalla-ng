@@ -36,7 +36,8 @@
     },
     "error": {
       "invalid_auth": "인증 실패 - 하위 도메인과 API 토큰을 확인하세요.",
-      "cannot_connect": "Firewalla API에 연결할 수 없습니다. 네트워크와 하위 도메인을 확인하세요."
+      "cannot_connect": "Firewalla API에 연결할 수 없습니다. 네트워크와 하위 도메인을 확인하세요.",
+      "no_boxes": "인증에 성공했지만 이 MSP 계정에 할당된 박스가 없습니다."
     },
     "abort": {
       "already_configured": "이 Firewalla MSP 계정은 이미 구성되어 있습니다."

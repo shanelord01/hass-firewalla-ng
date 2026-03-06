@@ -36,7 +36,8 @@
     },
     "error": {
       "invalid_auth": "認証に失敗しました - サブドメインと API トークンを確認してください。",
-      "cannot_connect": "Firewalla API に接続できません。ネットワークとサブドメインを確認してください。"
+      "cannot_connect": "Firewalla API に接続できません。ネットワークとサブドメインを確認してください。",
+      "no_boxes": "認証に成功しましたが、この MSP アカウントに Box が割り当てられていません。"
     },
     "abort": {
       "already_configured": "この Firewalla MSP アカウントは既に設定されています。"

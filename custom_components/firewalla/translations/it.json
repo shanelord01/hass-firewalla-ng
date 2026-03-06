@@ -36,7 +36,8 @@
     },
     "error": {
       "invalid_auth": "Autenticazione fallita – controlla sottodominio e token API.",
-      "cannot_connect": "Impossibile raggiungere l'API Firewalla. Controlla rete e sottodominio."
+      "cannot_connect": "Impossibile raggiungere l'API Firewalla. Controlla rete e sottodominio.",
+      "no_boxes": "Autenticazione riuscita ma nessun box è assegnato a questo account MSP."
     },
     "abort": {
       "already_configured": "Questo account Firewalla MSP è già configurato."

@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Connect to Firewalla MSP",
-        "description": "Enter your Firewalla MSP subdomain (the part before .firewalla.net) and your personal access token.\n\nCreate a token under **Account Settings \u2192 Create New Token** in your MSP portal.",
+        "description": "Enter your Firewalla MSP subdomain (the part before .firewalla.net) and your personal access token.\n\nCreate a token under **Account Settings → Create New Token** in your MSP portal.",
         "data": {
           "subdomain": "MSP Subdomain",
           "api_token": "API Token",
@@ -36,7 +36,8 @@
     },
     "error": {
       "invalid_auth": "Authentication failed - check your subdomain and API token.",
-      "cannot_connect": "Unable to reach the Firewalla API. Check your network and subdomain."
+      "cannot_connect": "Unable to reach the Firewalla API. Check your network and subdomain.",
+      "no_boxes": "Authentication succeeded but no Boxes are assigned to this MSP account."
     },
     "abort": {
       "already_configured": "This Firewalla MSP account is already configured."

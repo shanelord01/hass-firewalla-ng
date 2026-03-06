@@ -36,7 +36,8 @@
     },
     "error": {
       "invalid_auth": "Authenticatie mislukt – controleer je subdomein en API-token.",
-      "cannot_connect": "Kan de Firewalla-API niet bereiken. Controleer je netwerk en subdomein."
+      "cannot_connect": "Kan de Firewalla-API niet bereiken. Controleer je netwerk en subdomein.",
+      "no_boxes": "Authenticatie geslaagd maar er zijn geen boxen toegewezen aan dit MSP-account."
     },
     "abort": {
       "already_configured": "Dit Firewalla MSP-account is al geconfigureerd."

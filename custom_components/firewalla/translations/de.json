@@ -36,7 +36,8 @@
     },
     "error": {
       "invalid_auth": "Authentifizierung fehlgeschlagen – überprüfe Subdomain und API-Token.",
-      "cannot_connect": "Firewalla-API nicht erreichbar. Überprüfe Netzwerk und Subdomain."
+      "cannot_connect": "Firewalla-API nicht erreichbar. Überprüfe Netzwerk und Subdomain.",
+      "no_boxes": "Authentifizierung erfolgreich, aber diesem MSP-Konto sind keine Boxen zugewiesen."
     },
     "abort": {
       "already_configured": "Dieses Firewalla MSP-Konto ist bereits konfiguriert."

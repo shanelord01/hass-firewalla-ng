@@ -36,7 +36,8 @@
     },
     "error": {
       "invalid_auth": "Échec de l'authentification – vérifiez votre sous-domaine et votre jeton API.",
-      "cannot_connect": "Impossible de joindre l'API Firewalla. Vérifiez votre réseau et votre sous-domaine."
+      "cannot_connect": "Impossible de joindre l'API Firewalla. Vérifiez votre réseau et votre sous-domaine.",
+      "no_boxes": "Authentification réussie mais aucun Box n'est attribué à ce compte MSP."
     },
     "abort": {
       "already_configured": "Ce compte Firewalla MSP est déjà configuré."
