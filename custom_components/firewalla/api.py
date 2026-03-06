@@ -138,7 +138,9 @@ class FirewallaApiClient:
                 ct = response.headers.get("Content-Type", "")
                 if "text/html" in ct:
                     body = await response.text()
-                    if "<html" in body:
+                    # v2.4.9.1: Case-insensitive check — some WAF/proxy pages
+                    # use <HTML>, <Html>, or other casing.
+                    if "<html" in body.lower():
                         _LOGGER.error(
                             "HTML instead of JSON from %s (HTTP %s)",
                             url,

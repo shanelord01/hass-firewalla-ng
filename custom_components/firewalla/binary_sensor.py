@@ -34,15 +34,19 @@ def _safe_configuration_url(raw_ip: str | None) -> str | None:
     Validates the value is a real IP address before embedding it in a URL
     shown on the HA device card.  Rejects hostnames, empty strings, and
     malformed values that could construct an unexpected URL.
+    IPv6 addresses are wrapped in brackets per RFC 2732.
     """
     if not raw_ip:
         return None
     try:
-        ipaddress.ip_address(raw_ip)
+        addr = ipaddress.ip_address(raw_ip)
     except ValueError:
         _LOGGER.debug("Ignoring invalid publicIP value: %s", raw_ip)
         return None
-    return f"https://{raw_ip}"
+    # v2.4.9.1: IPv6 addresses must be bracketed in URLs (RFC 2732).
+    if isinstance(addr, ipaddress.IPv6Address):
+        return f"https://[{addr}]"
+    return f"https://{addr}"
 
 
 async def async_setup_entry(

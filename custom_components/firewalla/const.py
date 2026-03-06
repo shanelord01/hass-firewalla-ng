@@ -10,13 +10,12 @@ class FirewallaAuthError(Exception):
     """
 
 DOMAIN: Final = "firewalla"
-BRAND: Final = "Firewalla"
 PLATFORMS: Final = ["sensor", "binary_sensor", "switch", "device_tracker"]
 
 # Configuration keys
 CONF_API_TOKEN: Final = "api_token"
 CONF_SUBDOMAIN: Final = "subdomain"
-CONF_SCAN_INTERVAL: Final = "scan_interval"
+# Note: CONF_SCAN_INTERVAL is imported from homeassistant.const by consumers.
 CONF_ENABLE_ALARMS: Final = "enable_alarms"
 CONF_ENABLE_RULES: Final = "enable_rules"
 CONF_ENABLE_FLOWS: Final = "enable_flows"
@@ -43,17 +42,6 @@ SERVICE_RENAME_DEVICE: Final = "rename_device"
 SERVICE_SEARCH_ALARMS: Final = "search_alarms"
 SERVICE_SEARCH_FLOWS: Final = "search_flows"
 
-# Entity attributes
-ATTR_DEVICE_ID: Final = "device_id"
-ATTR_DEVICE_NAME: Final = "device_name"
-ATTR_NETWORK_ID: Final = "network_id"
-ATTR_LAST_SEEN: Final = "last_seen"
-ATTR_IP_ADDRESS: Final = "ip_address"
-ATTR_MAC_ADDRESS: Final = "mac_address"
-ATTR_ONLINE: Final = "online"
-ATTR_BLOCKED: Final = "blocked"
-ATTR_UPLOAD: Final = "upload"
-ATTR_DOWNLOAD: Final = "download"
-ATTR_BLOCKED_COUNT: Final = "blocked_count"
+# Entity attributes (only constants actively imported by platform modules)
 ATTR_ALARM_ID: Final = "alarm_id"
 ATTR_RULE_ID: Final = "rule_id"

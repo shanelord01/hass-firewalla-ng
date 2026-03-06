@@ -129,7 +129,8 @@ async def async_remove_config_entry_device(
     """Handle the 'Delete' button on a device page in the HA UI.
 
     Called by HA when the user clicks Delete on a device card.
-    Box devices are not deletable via this path — return False to block.
+    Box devices and the MSP service device are not deletable via this path —
+    return False to block.
     For network devices, call the Firewalla API to remove the device record,
     then return True to allow HA to remove it from the device registry.
     If the API call fails we still return True so the user can clean up
@@ -140,8 +141,10 @@ async def async_remove_config_entry_device(
     for domain, identifier in device_entry.identifiers:
         if domain != DOMAIN:
             continue
-        if identifier.startswith("box_"):
-            # Box devices should not be deleted from here
+        # v2.4.9.1: Block deletion of box devices AND the MSP service device.
+        # Without the msp_global_ check, clicking Delete on the 'Firewalla MSP'
+        # device card orphans all MSP-level entities until next reload.
+        if identifier.startswith("box_") or identifier.startswith("msp_global_"):
             return False
         fw_device_id = identifier
 
@@ -348,8 +351,10 @@ def _async_register_services(hass: HomeAssistant) -> None:
             for domain, identifier in device_entry.identifiers:
                 if domain != DOMAIN:
                     continue
-                if identifier.startswith("box_"):
-                    continue  # Skip box identifiers
+                # v2.4.9.1: Skip box and MSP service device identifiers —
+                # these are not renamable network devices.
+                if identifier.startswith("box_") or identifier.startswith("msp_global_"):
+                    continue
                 fw_device_id = identifier
 
             if not fw_device_id:

@@ -143,6 +143,10 @@ class _FirewallaSensor(CoordinatorEntity[FirewallaCoordinator], SensorEntity):
         )
 
     def _get_device(self) -> dict[str, Any] | None:
+        # v2.4.9.1: Guard against coordinator.data being None — matches the
+        # pattern used in binary_sensor.py, switch.py, and device_tracker.py.
+        if not self.coordinator.data:
+            return None
         return next(
             (
                 d
@@ -342,6 +346,9 @@ class FirewallaFlowSensor(CoordinatorEntity[FirewallaCoordinator], SensorEntity)
 
     @property
     def native_value(self) -> float | None:
+        # v2.4.9.1: Guard against coordinator.data being None.
+        if not self.coordinator.data:
+            return None
         flow = next(
             (
                 f
@@ -484,6 +491,10 @@ class FirewallaTargetListSensor(CoordinatorEntity[FirewallaCoordinator], SensorE
 
     def _get_tl(self) -> dict[str, Any] | None:
         """Find this target list in the latest coordinator data."""
+        # v2.4.9.1: Guard against coordinator.data being None — matches the
+        # pattern used in binary_sensor.py, switch.py, and device_tracker.py.
+        if not self.coordinator.data:
+            return None
         return next(
             (
                 tl
