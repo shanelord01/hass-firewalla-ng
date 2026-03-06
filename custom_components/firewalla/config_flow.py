@@ -38,13 +38,18 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-# v2.4.9: RFC-952/1123 subdomain pattern — prevents control characters, spaces,
+# RFC-952/1123 subdomain pattern — prevents control characters, spaces,
 # and URL-significant characters from reaching the URL constructor.
 _SUBDOMAIN_RE = re.compile(r"^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$")
 
 
 def _validate_subdomain(value: str) -> str:
-    """Validate that a subdomain contains only legal hostname characters."""
+    """Validate and normalise a subdomain value.
+
+    Must be called in the handler, not embedded in the voluptuous schema —
+    voluptuous_serialize cannot serialise bare Python functions and will raise
+    ValueError when HA tries to render the config flow form (HTTP 500).
+    """
     value = value.strip().lower()
     if not _SUBDOMAIN_RE.match(value):
         raise vol.Invalid(
@@ -71,48 +76,59 @@ class FirewallaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            session = async_get_clientsession(self.hass)
-            client = FirewallaApiClient(
-                session=session,
-                api_token=user_input[CONF_API_TOKEN],
-                subdomain=user_input[CONF_SUBDOMAIN],
-            )
+            # Validate subdomain manually — cannot be done in the schema because
+            # voluptuous_serialize rejects bare Python callables and raises a
+            # ValueError that surfaces as HTTP 500 before the form renders.
             try:
-                # Use get_boxes() directly — a non-empty result confirms valid
-                # credentials without a separate async_check_credentials() call
-                # that would hit GET /boxes twice in rapid succession.
-                boxes = await client.get_boxes()
-            except FirewallaAuthError:
-                errors["base"] = "invalid_auth"
-            except Exception:  # noqa: BLE001
-                _LOGGER.exception("Error during Firewalla credential check")
-                errors["base"] = "cannot_connect"
-            else:
-                # v2.4.9: get_boxes() returns None on API failure (network
-                # error, server error, unexpected response) and [] on a
-                # genuine empty-but-valid account. Distinguish the two so
-                # the user sees the correct error message.
-                if boxes is None:
+                user_input[CONF_SUBDOMAIN] = _validate_subdomain(
+                    user_input[CONF_SUBDOMAIN]
+                )
+            except vol.Invalid:
+                errors[CONF_SUBDOMAIN] = "invalid_subdomain"
+
+            if not errors:
+                session = async_get_clientsession(self.hass)
+                client = FirewallaApiClient(
+                    session=session,
+                    api_token=user_input[CONF_API_TOKEN],
+                    subdomain=user_input[CONF_SUBDOMAIN],
+                )
+                try:
+                    # Use get_boxes() directly — a non-empty result confirms valid
+                    # credentials without a separate async_check_credentials() call
+                    # that would hit GET /boxes twice in rapid succession.
+                    boxes = await client.get_boxes()
+                except FirewallaAuthError:
+                    errors["base"] = "invalid_auth"
+                except Exception:  # noqa: BLE001
+                    _LOGGER.exception("Error during Firewalla credential check")
                     errors["base"] = "cannot_connect"
-                elif boxes:
-                    self._boxes = boxes
-                    self._user_input = user_input
-
-                    # If only one box, skip selection step
-                    if len(self._boxes) <= 1:
-                        return await self._async_create_entry(box_filter=[])
-
-                    return await self.async_step_select_boxes()
                 else:
-                    # Genuine empty list — valid credentials but zero boxes
-                    errors["base"] = "no_boxes"
+                    # get_boxes() returns None on API failure (network error,
+                    # server error, unexpected response) and [] on a genuine
+                    # empty-but-valid account. Distinguish the two so the user
+                    # sees the correct error message.
+                    if boxes is None:
+                        errors["base"] = "cannot_connect"
+                    elif boxes:
+                        self._boxes = boxes
+                        self._user_input = user_input
+
+                        # If only one box, skip selection step
+                        if len(self._boxes) <= 1:
+                            return await self._async_create_entry(box_filter=[])
+
+                        return await self.async_step_select_boxes()
+                    else:
+                        # Genuine empty list — valid credentials but zero boxes
+                        errors["base"] = "no_boxes"
 
         schema = vol.Schema(
             {
                 vol.Required(
                     CONF_SUBDOMAIN,
                     default=(user_input or {}).get(CONF_SUBDOMAIN, DEFAULT_SUBDOMAIN),
-                ): vol.All(str, _validate_subdomain),
+                ): str,
                 vol.Required(CONF_API_TOKEN): str,
                 vol.Optional(
                     CONF_SCAN_INTERVAL,
