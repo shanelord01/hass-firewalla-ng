@@ -37,7 +37,8 @@
     "error": {
       "invalid_auth": "Authentication failed - check your subdomain and API token.",
       "cannot_connect": "Unable to reach the Firewalla API. Check your network and subdomain.",
-      "no_boxes": "Authentication succeeded but no Boxes are assigned to this MSP account."
+      "no_boxes": "Authentication succeeded but no Boxes are assigned to this MSP account.",
+      "invalid_subdomain": "Subdomain must be 1-63 alphanumeric characters or hyphens, starting and ending with a letter or digit."
     },
     "abort": {
       "already_configured": "This Firewalla MSP account is already configured."
