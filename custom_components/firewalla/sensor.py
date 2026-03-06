@@ -457,7 +457,12 @@ class FirewallaTargetListSensor(CoordinatorEntity[FirewallaCoordinator], SensorE
         """Initialise the sensor from a target list dict."""
         super().__init__(coordinator)
         self._tl_id: str = tl["id"]
-        self._attr_unique_id = f"{DOMAIN}_target_list_{self._tl_id}"
+        # Scope to entry_id: target lists are account-level objects that could
+        # overlap across MSP tokens — without this, multi-account installs
+        # silently drop the second account's target list sensors.
+        self._attr_unique_id = (
+            f"{DOMAIN}_target_list_{self._tl_id}_{coordinator.config_entry.entry_id}"
+        )
 
         # Use the TL name as the entity name within the MSP device
         self._attr_name = tl.get("name", self._tl_id)

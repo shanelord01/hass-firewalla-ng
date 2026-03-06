@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from datetime import datetime, timezone
 from typing import Any
 
@@ -38,6 +39,9 @@ class FirewallaApiClient:
         self._session = session
         self._api_token = api_token
         self._subdomain = subdomain
+
+        # Monotonic timestamp after which requests may resume following a 429.
+        self._rate_limited_until: float = 0.0
 
         if subdomain:
             self._base_url = f"https://{subdomain}.firewalla.net/v2"
@@ -78,6 +82,18 @@ class FirewallaApiClient:
         or ``None`` on non-auth errors.
         """
         url = f"{self._base_url}/{endpoint}"
+
+        # Honour Retry-After from a previous 429 response.  Return None
+        # (same as a transient error) so the coordinator falls back to
+        # cached data without hammering a rate-limited endpoint.
+        now_mono = time.monotonic()
+        if now_mono < self._rate_limited_until:
+            remaining = int(self._rate_limited_until - now_mono)
+            _LOGGER.debug(
+                "Skipping %s %s — rate-limited for %ds more", method, url, remaining
+            )
+            return None
+
         _LOGGER.debug("%s %s", method, url)
 
         try:
@@ -99,12 +115,18 @@ class FirewallaApiClient:
 
                 if response.status == 429:
                     body = await response.text()
-                    retry_after = response.headers.get("Retry-After", "?")
+                    retry_after_hdr = response.headers.get("Retry-After", "60")
+                    try:
+                        retry_seconds = int(retry_after_hdr)
+                    except (ValueError, TypeError):
+                        retry_seconds = 60
+                    # Clamp to a sane range: at least 30s, at most 600s (10 min)
+                    retry_seconds = max(30, min(retry_seconds, 600))
+                    self._rate_limited_until = time.monotonic() + retry_seconds
                     _LOGGER.warning(
-                        "Rate limited (429) from %s — Retry-After: %s. "
-                        "Will retry at next poll interval.",
+                        "Rate limited (429) from %s — backing off %ds.",
                         url,
-                        retry_after,
+                        retry_seconds,
                     )
                     return None
 

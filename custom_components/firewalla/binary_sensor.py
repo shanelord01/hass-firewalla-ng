@@ -1,6 +1,7 @@
 """Binary sensor platform for Firewalla."""
 from __future__ import annotations
 
+import ipaddress
 import logging
 from typing import Any
 
@@ -25,6 +26,23 @@ from .coordinator import FirewallaCoordinator
 from .helpers import box_display_name, first_box_id
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _safe_configuration_url(raw_ip: str | None) -> str | None:
+    """Return an https URL for the box's public IP, or None if invalid.
+
+    Validates the value is a real IP address before embedding it in a URL
+    shown on the HA device card.  Rejects hostnames, empty strings, and
+    malformed values that could construct an unexpected URL.
+    """
+    if not raw_ip:
+        return None
+    try:
+        ipaddress.ip_address(raw_ip)
+    except ValueError:
+        _LOGGER.debug("Ignoring invalid publicIP value: %s", raw_ip)
+        return None
+    return f"https://{raw_ip}"
 
 
 async def async_setup_entry(
@@ -102,9 +120,7 @@ class FirewallaBoxOnlineSensor(_FirewallaBinarySensor):
             manufacturer="Firewalla",
             model=box.get("model", "Firewalla Box"),
             sw_version=box.get("version"),
-            configuration_url=(
-                f"https://{box.get('publicIP')}" if box.get("publicIP") else None
-            ),
+            configuration_url=_safe_configuration_url(box.get("publicIP")),
         )
         self._update_state(box)
 

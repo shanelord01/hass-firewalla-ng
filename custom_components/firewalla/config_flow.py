@@ -1,6 +1,7 @@
 """Config flow for Firewalla integration."""
 from __future__ import annotations
 
+import hashlib
 import logging
 import re
 from typing import Any
@@ -104,7 +105,7 @@ class FirewallaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     return await self.async_step_select_boxes()
                 else:
                     # Genuine empty list — valid credentials but zero boxes
-                    errors["base"] = "invalid_auth"
+                    errors["base"] = "no_boxes"
 
         schema = vol.Schema(
             {
@@ -182,9 +183,22 @@ class FirewallaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         subdomain = self._user_input[CONF_SUBDOMAIN]
         token = self._user_input[CONF_API_TOKEN]
 
-        unique_id = f"{subdomain}_{token[-8:]}"
+        # Use a SHA-256 hash prefix instead of raw token characters so the
+        # persistent unique_id in .storage/core.config_entries does not leak
+        # any part of the API token to filesystem readers.
+        token_hash = hashlib.sha256(token.encode()).hexdigest()[:12]
+        unique_id = f"{subdomain}_{token_hash}"
         await self.async_set_unique_id(unique_id)
         self._abort_if_unique_id_configured()
+
+        # Backwards compatibility: entries created before v2.5 used the last
+        # 8 characters of the raw token as the unique_id suffix.  Check for
+        # an existing entry with the old format to prevent duplicate config
+        # entries when the user re-adds the same account after upgrading.
+        old_unique_id = f"{subdomain}_{token[-8:]}"
+        for existing in self.hass.config_entries.async_entries(DOMAIN):
+            if existing.unique_id == old_unique_id:
+                return self.async_abort(reason="already_configured")
 
         data = {**self._user_input, CONF_BOX_FILTER: box_filter}
 
