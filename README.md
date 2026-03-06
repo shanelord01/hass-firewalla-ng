@@ -1,6 +1,11 @@
 # Firewalla MSP Integration for Home Assistant
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz)
+[![CurrentVersion](https://img.shields.io/badge/Current_Version-v2.4.9.2-orange.svg)](https://github.com/shanelord01/hass-firewalla-ng)   [![Released](https://img.shields.io/badge/Released-March,_2026-orange.svg)](https://github.com/shanelord01/hass-firewalla-ng)   [![HACS](https://img.shields.io/badge/HACS-Custom_Repository-darkorange.svg)](https://github.com/shanelord01/hass-firewalla-ng)
+
+[![Type](https://img.shields.io/badge/Type-Custom_Component-forestgreen.svg)](https://github.com/shanelord01/hass-firewalla-ng)   [![HA](https://img.shields.io/badge/Home_Assistant-2024.4+-forestgreen.svg)](https://www.home-assistant.io)   [![ProjectStage](https://img.shields.io/badge/Project_Stage-General_Availability-forestgreen.svg)](https://github.com/shanelord01/hass-firewalla-ng)
+
+
+Good to go - copy-paste ready.
 
 Monitor one or multiple Firewalla MSP-managed devices from Home Assistant.
 Built against the [Firewalla MSP API v2](https://docs.firewalla.net/) for Home Assistant 2024.4+.
