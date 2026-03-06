@@ -76,14 +76,14 @@ async def async_setup_entry(
         for flow in coordinator.data.get("flows", []):
             if isinstance(flow, dict) and "id" in flow:
                 flow_device_id = (flow.get("device") or {}).get("id", "").upper()
-                device = next(
+                flow_device = next(
                     (
                         d for d in devices
                         if isinstance(d, dict) and d.get("id", "").upper() == flow_device_id
                     ),
                     None,
                 ) if flow_device_id else None
-                entities.append(FirewallaFlowSensor(coordinator, flow, device))
+                entities.append(FirewallaFlowSensor(coordinator, flow, flow_device))
 
     # Alarm summary sensor (optional)
     if enable_alarms:
@@ -187,7 +187,7 @@ class FirewallaMacAddressSensor(_FirewallaSensor):
         if not device:
             return None
         # mac is synthesised from device id in api.py — already clean
-        return device.get("mac") or None
+        return device.get("mac")
 
 
 class FirewallaNetworkNameSensor(_FirewallaSensor):
@@ -291,6 +291,9 @@ class FirewallaAlarmCountSensor(CoordinatorEntity[FirewallaCoordinator], SensorE
         if not self.coordinator.data:
             return {}
         alarms = self.coordinator.data.get("alarms", [])
+        # Filter for active first, then cap at 10 — not the other way around.
+        # Slicing before filtering would silently omit active alarms that
+        # happen to sit beyond position 10 in the raw list.
         active = [
             {
                 "id": a.get("id"),
@@ -298,9 +301,9 @@ class FirewallaAlarmCountSensor(CoordinatorEntity[FirewallaCoordinator], SensorE
                 "type": a.get("type"),
                 "ts": a.get("ts"),
             }
-            for a in alarms[:10]
+            for a in alarms
             if isinstance(a, dict) and a.get("status", 1) != 2
-        ]
+        ][:10]
         return {
             "total_alarms": len(alarms),
             "active_alarms": active,
