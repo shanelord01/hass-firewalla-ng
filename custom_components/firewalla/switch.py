@@ -13,6 +13,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import ATTR_RULE_ID, CONF_ENABLE_RULES, DOMAIN
 from .coordinator import FirewallaCoordinator
+from .helpers import first_box_id
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -62,15 +63,10 @@ class FirewallaRuleSwitch(CoordinatorEntity[FirewallaCoordinator], SwitchEntity)
         )
         self._attr_name = f"{action}: {target}"
 
-        box_id = rule.get("gid") or self._first_box_id(coordinator)
+        box_id = rule.get("gid") or first_box_id(coordinator.data)
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"box_{box_id}")},
         )
-
-    @staticmethod
-    def _first_box_id(coordinator: FirewallaCoordinator) -> str:
-        boxes = coordinator.data.get("boxes", []) if coordinator.data else []
-        return boxes[0].get("id", "unknown") if boxes else "unknown"
 
     def _get_rule(self) -> dict[str, Any] | None:
         """Return the latest rule data from the coordinator."""
