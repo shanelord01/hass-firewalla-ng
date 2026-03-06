@@ -4,9 +4,6 @@
 
 [![Type](https://img.shields.io/badge/Type-Custom_Component-forestgreen.svg)](https://github.com/shanelord01/hass-firewalla-ng)   [![HA](https://img.shields.io/badge/Home_Assistant-2024.4+-forestgreen.svg)](https://www.home-assistant.io)   [![ProjectStage](https://img.shields.io/badge/Project_Stage-General_Availability-forestgreen.svg)](https://github.com/shanelord01/hass-firewalla-ng)
 
-
-Good to go - copy-paste ready.
-
 Monitor one or multiple Firewalla MSP-managed devices from Home Assistant.
 Built against the [Firewalla MSP API v2](https://docs.firewalla.net/) for Home Assistant 2024.4+.
 
