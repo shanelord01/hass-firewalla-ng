@@ -32,13 +32,31 @@ async def async_setup_entry(
     if not coordinator.data:
         return
 
-    entities = [
-        FirewallaRuleSwitch(coordinator, rule)
-        for rule in coordinator.data.get("rules", [])
-        if isinstance(rule, dict) and "id" in rule
-    ]
+    known_rule_ids: set[str] = set()
 
-    async_add_entities(entities)
+    @callback
+    def _async_add_new_rules() -> None:
+        """Discover and register new rule switch entities on each coordinator update."""
+        if not coordinator.data:
+            return
+
+        new_entities: list[SwitchEntity] = []
+        for rule in coordinator.data.get("rules", []):
+            if not isinstance(rule, dict) or "id" not in rule:
+                continue
+            rule_id = str(rule["id"])
+            if rule_id not in known_rule_ids:
+                known_rule_ids.add(rule_id)
+                new_entities.append(FirewallaRuleSwitch(coordinator, rule))
+
+        if new_entities:
+            async_add_entities(new_entities)
+
+    # Register entities already present at setup time.
+    _async_add_new_rules()
+
+    # Re-run on every subsequent coordinator refresh to pick up new rules.
+    entry.async_on_unload(coordinator.async_add_listener(_async_add_new_rules))
 
 
 class FirewallaRuleSwitch(CoordinatorEntity[FirewallaCoordinator], SwitchEntity):

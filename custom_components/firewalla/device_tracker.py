@@ -24,7 +24,6 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Firewalla device trackers."""
-    # Honour the CONF_TRACK_DEVICES toggle
     if not entry.options.get(
         CONF_TRACK_DEVICES, entry.data.get(CONF_TRACK_DEVICES, True)
     ):
@@ -35,13 +34,31 @@ async def async_setup_entry(
     if not coordinator.data or "devices" not in coordinator.data:
         return
 
-    entities = [
-        FirewallaDeviceTracker(coordinator, device)
-        for device in coordinator.data["devices"]
-        if isinstance(device, dict) and "id" in device
-    ]
+    known_device_ids: set[str] = set()
 
-    async_add_entities(entities)
+    @callback
+    def _async_add_new_trackers() -> None:
+        """Discover and register new device tracker entities on each coordinator update."""
+        if not coordinator.data:
+            return
+
+        new_entities: list[ScannerEntity] = []
+        for device in coordinator.data.get("devices", []):
+            if not isinstance(device, dict) or "id" not in device:
+                continue
+            device_id = str(device["id"])
+            if device_id not in known_device_ids:
+                known_device_ids.add(device_id)
+                new_entities.append(FirewallaDeviceTracker(coordinator, device))
+
+        if new_entities:
+            async_add_entities(new_entities)
+
+    # Register entities already present at setup time.
+    _async_add_new_trackers()
+
+    # Re-run on every subsequent coordinator refresh to pick up new devices.
+    entry.async_on_unload(coordinator.async_add_listener(_async_add_new_trackers))
 
 
 class FirewallaDeviceTracker(CoordinatorEntity[FirewallaCoordinator], ScannerEntity):
@@ -57,13 +74,12 @@ class FirewallaDeviceTracker(CoordinatorEntity[FirewallaCoordinator], ScannerEnt
 
         # Cache MAC at instantiation so automations referencing this tracker
         # by MAC continue to work even when the device is offline.
-        # mac is synthesised from device id in api.py get_devices() — already clean
         self._mac = device.get("mac", "")
 
         self._attr_unique_id = f"{DOMAIN}_tracker_{self._device_id}"
         self._attr_name = device.get("name", f"Device {self._device_id}")
 
-        # Attach to the correct parent box using the device's gid/boxId field
+        # Attach to the correct parent box using the device's gid/boxId field.
         boxes = coordinator.data.get("boxes", []) if coordinator.data else []
         device_box_gid = device.get("gid") or device.get("boxId")
         parent_box = next(

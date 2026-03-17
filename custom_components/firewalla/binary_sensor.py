@@ -43,7 +43,6 @@ def _safe_configuration_url(raw_ip: str | None) -> str | None:
     except ValueError:
         _LOGGER.debug("Ignoring invalid publicIP value: %s", raw_ip)
         return None
-    # v2.4.9.1: IPv6 addresses must be bracketed in URLs (RFC 2732).
     if isinstance(addr, ipaddress.IPv6Address):
         return f"https://[{addr}]"
     return f"https://{addr}"
@@ -63,31 +62,68 @@ async def async_setup_entry(
     def _opt(key: str) -> bool:
         return entry.options.get(key, entry.data.get(key, False))
 
-    entities: list[BinarySensorEntity] = []
+    enable_rules = _opt(CONF_ENABLE_RULES)
+    enable_alarms = _opt(CONF_ENABLE_ALARMS)
 
-    # Box connectivity (always enabled)
-    for box in coordinator.data.get("boxes", []):
-        if isinstance(box, dict) and "id" in box:
-            entities.append(FirewallaBoxOnlineSensor(coordinator, box))
+    known_box_ids: set[str] = set()
+    known_device_ids: set[str] = set()
+    known_rule_ids: set[str] = set()
+    known_alarm_ids: set[str] = set()
 
-    # Device connectivity (always enabled)
-    for device in coordinator.data.get("devices", []):
-        if isinstance(device, dict) and "id" in device:
-            entities.append(FirewallaDeviceOnlineSensor(coordinator, device))
+    @callback
+    def _async_add_new_entities() -> None:
+        """Discover and register new binary sensor entities on each coordinator update."""
+        if not coordinator.data:
+            return
 
-    # Rules (optional)
-    if _opt(CONF_ENABLE_RULES):
-        for rule in coordinator.data.get("rules", []):
-            if isinstance(rule, dict) and "id" in rule:
-                entities.append(FirewallaRuleActiveSensor(coordinator, rule))
+        new_entities: list[BinarySensorEntity] = []
 
-    # Individual alarm sensors (optional)
-    if _opt(CONF_ENABLE_ALARMS):
-        for alarm in coordinator.data.get("alarms", []):
-            if isinstance(alarm, dict) and "id" in alarm:
-                entities.append(FirewallaAlarmSensor(coordinator, alarm))
+        # Box connectivity (always enabled)
+        for box in coordinator.data.get("boxes", []):
+            if not isinstance(box, dict) or "id" not in box:
+                continue
+            box_id = str(box["id"])
+            if box_id not in known_box_ids:
+                known_box_ids.add(box_id)
+                new_entities.append(FirewallaBoxOnlineSensor(coordinator, box))
 
-    async_add_entities(entities)
+        # Device connectivity (always enabled)
+        for device in coordinator.data.get("devices", []):
+            if not isinstance(device, dict) or "id" not in device:
+                continue
+            device_id = str(device["id"])
+            if device_id not in known_device_ids:
+                known_device_ids.add(device_id)
+                new_entities.append(FirewallaDeviceOnlineSensor(coordinator, device))
+
+        # Rules (optional)
+        if enable_rules:
+            for rule in coordinator.data.get("rules", []):
+                if not isinstance(rule, dict) or "id" not in rule:
+                    continue
+                rule_id = str(rule["id"])
+                if rule_id not in known_rule_ids:
+                    known_rule_ids.add(rule_id)
+                    new_entities.append(FirewallaRuleActiveSensor(coordinator, rule))
+
+        # Individual alarm sensors (optional)
+        if enable_alarms:
+            for alarm in coordinator.data.get("alarms", []):
+                if not isinstance(alarm, dict) or "id" not in alarm:
+                    continue
+                alarm_id = str(alarm["id"])
+                if alarm_id not in known_alarm_ids:
+                    known_alarm_ids.add(alarm_id)
+                    new_entities.append(FirewallaAlarmSensor(coordinator, alarm))
+
+        if new_entities:
+            async_add_entities(new_entities)
+
+    # Register entities already present at setup time.
+    _async_add_new_entities()
+
+    # Re-run on every subsequent coordinator refresh to pick up new entries.
+    entry.async_on_unload(coordinator.async_add_listener(_async_add_new_entities))
 
 
 # ---------------------------------------------------------------------------
@@ -325,7 +361,6 @@ class FirewallaAlarmSensor(_FirewallaBinarySensor):
     def _update_state(self, alarm: dict[str, Any]) -> None:
         self._attr_is_on = alarm.get("status", 1) != 2
 
-        # Resolve linked device name from coordinator data for the attribute
         device_id = (alarm.get("device") or {}).get("id")
         device_name: str | None = None
         if device_id and self.coordinator.data:

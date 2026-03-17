@@ -12,7 +12,7 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import UnitOfInformation
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceEntryType
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -50,66 +50,86 @@ async def async_setup_entry(
     enable_alarms = _opt(CONF_ENABLE_ALARMS)
     enable_target_lists = _opt(CONF_ENABLE_TARGET_LISTS)
 
-    entities: list[SensorEntity] = []
-    devices = coordinator.data.get("devices", [])
-
-    for device in devices:
-        if not isinstance(device, dict) or "id" not in device:
-            continue
-
-        # Core identity sensors (always on)
-        entities.append(FirewallaIpAddressSensor(coordinator, device))
-        entities.append(FirewallaMacAddressSensor(coordinator, device))
-        entities.append(FirewallaNetworkNameSensor(coordinator, device))
-
-        # Bandwidth sensors (optional)
-        if enable_traffic:
-            entities.append(FirewallaTotalDownloadSensor(coordinator, device))
-            entities.append(FirewallaTotalUploadSensor(coordinator, device))
-
-    # Flow sensors (optional)
-    # Per Firewalla MSP API docs, flow.device.id is the device MAC address
-    # (uppercase, e.g. "AA:BB:CC:DD:EE:FF"). Normalise to uppercase on both
-    # sides to ensure reliable matching regardless of how the devices endpoint
-    # returns MAC addresses.
-    if enable_flows:
-        # Pre-build a lookup dict keyed by uppercased device ID so flow→device
-        # matching is O(1) per flow instead of O(N) — significant when there
-        # are many flows and devices.
-        device_by_id: dict[str, dict[str, Any]] = {
-            d["id"].upper(): d
-            for d in devices
-            if isinstance(d, dict) and "id" in d
-        }
-
-        for flow in coordinator.data.get("flows", []):
-            if isinstance(flow, dict) and "id" in flow:
-                flow_device_id = (flow.get("device") or {}).get("id", "").upper()
-                flow_device = (
-                    device_by_id.get(flow_device_id) if flow_device_id else None
-                )
-                entities.append(FirewallaFlowSensor(coordinator, flow, flow_device))
-
-    # Alarm summary sensor (optional)
-    if enable_alarms:
-        entities.append(FirewallaAlarmCountSensor(coordinator))
-
-    # MSP simple stats — always enabled, single lightweight API call
-    entities.extend([
+    # MSP summary sensors and alarm count are singletons — add them once
+    # at setup time; they reference coordinator.data directly and never
+    # need dynamic entity creation.
+    static_entities: list[SensorEntity] = [
         FirewallaMspOnlineBoxesSensor(coordinator),
         FirewallaMspOfflineBoxesSensor(coordinator),
         FirewallaMspTotalAlarmsSensor(coordinator),
         FirewallaMspTotalRulesSensor(coordinator),
-    ])
+    ]
+    if enable_alarms:
+        static_entities.append(FirewallaAlarmCountSensor(coordinator))
 
-    # Target list sensors (optional)
-    if enable_target_lists:
-        for tl in coordinator.data.get("target_lists", []):
-            if isinstance(tl, dict) and "id" in tl:
-                entities.append(FirewallaTargetListSensor(coordinator, tl))
+    async_add_entities(static_entities)
 
-    if entities:
-        async_add_entities(entities)
+    # --- Dynamic entity sets (grow as the coordinator discovers new items) ---
+
+    known_device_ids: set[str] = set()
+    known_flow_ids: set[str] = set()
+    known_target_list_ids: set[str] = set()
+
+    @callback
+    def _async_add_new_entities() -> None:
+        """Discover and register new sensor entities on each coordinator update."""
+        if not coordinator.data:
+            return
+
+        new_entities: list[SensorEntity] = []
+
+        # Per-device identity and bandwidth sensors
+        for device in coordinator.data.get("devices", []):
+            if not isinstance(device, dict) or "id" not in device:
+                continue
+            device_id = str(device["id"])
+            if device_id not in known_device_ids:
+                known_device_ids.add(device_id)
+                new_entities.append(FirewallaIpAddressSensor(coordinator, device))
+                new_entities.append(FirewallaMacAddressSensor(coordinator, device))
+                new_entities.append(FirewallaNetworkNameSensor(coordinator, device))
+                if enable_traffic:
+                    new_entities.append(FirewallaTotalDownloadSensor(coordinator, device))
+                    new_entities.append(FirewallaTotalUploadSensor(coordinator, device))
+
+        # Flow sensors
+        if enable_flows:
+            # Pre-build a lookup dict keyed by uppercased device ID so
+            # flow→device matching is O(1) per flow instead of O(N).
+            device_by_id: dict[str, dict[str, Any]] = {
+                d["id"].upper(): d
+                for d in coordinator.data.get("devices", [])
+                if isinstance(d, dict) and "id" in d
+            }
+            for flow in coordinator.data.get("flows", []):
+                if not isinstance(flow, dict) or "id" not in flow:
+                    continue
+                flow_id = str(flow["id"])
+                if flow_id not in known_flow_ids:
+                    known_flow_ids.add(flow_id)
+                    flow_device_id = (flow.get("device") or {}).get("id", "").upper()
+                    flow_device = device_by_id.get(flow_device_id) if flow_device_id else None
+                    new_entities.append(FirewallaFlowSensor(coordinator, flow, flow_device))
+
+        # Target list sensors
+        if enable_target_lists:
+            for tl in coordinator.data.get("target_lists", []):
+                if not isinstance(tl, dict) or "id" not in tl:
+                    continue
+                tl_id = str(tl["id"])
+                if tl_id not in known_target_list_ids:
+                    known_target_list_ids.add(tl_id)
+                    new_entities.append(FirewallaTargetListSensor(coordinator, tl))
+
+        if new_entities:
+            async_add_entities(new_entities)
+
+    # Register entities already present at setup time.
+    _async_add_new_entities()
+
+    # Re-run on every subsequent coordinator refresh to pick up new items.
+    entry.async_on_unload(coordinator.async_add_listener(_async_add_new_entities))
+
 
 # ---------------------------------------------------------------------------
 # Base
@@ -143,8 +163,6 @@ class _FirewallaSensor(CoordinatorEntity[FirewallaCoordinator], SensorEntity):
         )
 
     def _get_device(self) -> dict[str, Any] | None:
-        # v2.4.9.1: Guard against coordinator.data being None — matches the
-        # pattern used in binary_sensor.py, switch.py, and device_tracker.py.
         if not self.coordinator.data:
             return None
         return next(
@@ -185,7 +203,6 @@ class FirewallaMacAddressSensor(_FirewallaSensor):
         device = self._get_device()
         if not device:
             return None
-        # mac is synthesised from device id in api.py — already clean
         return device.get("mac")
 
 
@@ -250,11 +267,7 @@ class FirewallaTotalUploadSensor(_FirewallaSensor):
 
 
 class FirewallaAlarmCountSensor(CoordinatorEntity[FirewallaCoordinator], SensorEntity):
-    """Summary sensor: number of active alarms across the MSP account.
-
-    Attached to the 'Firewalla MSP' service device alongside other MSP-wide
-    aggregate sensors (online/offline box counts, total rules).
-    """
+    """Summary sensor: number of active alarms across the MSP account."""
 
     _attr_has_entity_name = True
     _attr_translation_key = "alarm_count"
@@ -283,9 +296,6 @@ class FirewallaAlarmCountSensor(CoordinatorEntity[FirewallaCoordinator], SensorE
         if not self.coordinator.data:
             return {}
         alarms = self.coordinator.data.get("alarms", [])
-        # Filter for active first, then cap at 10 — not the other way around.
-        # Slicing before filtering would silently omit active alarms that
-        # happen to sit beyond position 10 in the raw list.
         active = [
             {
                 "id": a.get("id"),
@@ -330,9 +340,6 @@ class FirewallaFlowSensor(CoordinatorEntity[FirewallaCoordinator], SensorEntity)
                 identifiers={(DOMAIN, device["id"])},
             )
         else:
-            # Prefer the flow's own gid/boxId over falling back to boxes[0].
-            # In multi-box installs, pinning all unmatched flows to the first
-            # box regardless of origin is misleading.
             boxes = coordinator.data.get("boxes", []) if coordinator.data else []
             flow_box_gid = flow.get("gid") or flow.get("boxId")
             fallback_box_id = (
@@ -346,7 +353,6 @@ class FirewallaFlowSensor(CoordinatorEntity[FirewallaCoordinator], SensorEntity)
 
     @property
     def native_value(self) -> float | None:
-        # v2.4.9.1: Guard against coordinator.data being None.
         if not self.coordinator.data:
             return None
         flow = next(
@@ -363,21 +369,14 @@ class FirewallaFlowSensor(CoordinatorEntity[FirewallaCoordinator], SensorEntity)
             (flow.get("download", 0) + flow.get("upload", 0)) / 1024, 2
         )
 
+
 # ---------------------------------------------------------------------------
 # MSP Simple Stats Sensors
 # ---------------------------------------------------------------------------
 
+
 class FirewallaMspBaseSensor(CoordinatorEntity[FirewallaCoordinator], SensorEntity):
-    """Base class for MSP-wide summary sensors.
-
-    These attach to a virtual 'Firewalla MSP' service device rather than any
-    individual box, using DeviceEntryType.SERVICE as recommended by HA for
-    cloud/account-level entities.
-
-    DeviceInfo is built per-instance (scoped to entry_id) rather than as a
-    class-level variable. The class-level approach caused multi-account installs
-    to share a single 'Firewalla MSP' device card.
-    """
+    """Base class for MSP-wide summary sensors."""
 
     _attr_has_entity_name = True
     _attr_state_class = SensorStateClass.MEASUREMENT
@@ -388,16 +387,10 @@ class FirewallaMspBaseSensor(CoordinatorEntity[FirewallaCoordinator], SensorEnti
         key: str,
         translation_key: str,
     ) -> None:
-        """Initialise the sensor."""
         super().__init__(coordinator)
         self._key = key
         self._attr_translation_key = translation_key
-        # Include entry_id to prevent unique_id collision when two MSP accounts
-        # are configured — without it both entries generate identical unique_ids
-        # and HA silently drops the second account's sensors.
         self._attr_unique_id = f"{DOMAIN}_msp_{key}_{coordinator.config_entry.entry_id}"
-        # Scope the device identifier to the entry so each MSP account gets its
-        # own 'Firewalla MSP' device card in the HA device registry.
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"msp_global_{coordinator.config_entry.entry_id}")},
             name="Firewalla MSP",
@@ -408,7 +401,6 @@ class FirewallaMspBaseSensor(CoordinatorEntity[FirewallaCoordinator], SensorEnti
 
     @property
     def native_value(self) -> int | None:
-        """Return the current value from stats/simple."""
         stats = self.coordinator.data.get("stats_simple", {}) if self.coordinator.data else {}
         return stats.get(self._key)
 
@@ -445,15 +437,11 @@ class FirewallaMspTotalRulesSensor(FirewallaMspBaseSensor):
 # Target List Sensor
 # ---------------------------------------------------------------------------
 
+
 class FirewallaTargetListSensor(CoordinatorEntity[FirewallaCoordinator], SensorEntity):
     """Sensor representing a single Firewalla target list.
 
     State = number of entries in the list.
-    Attributes expose the full list content, owner, category, and timestamps
-    so automations can inspect or react to target list membership changes.
-
-    Attached to the 'Firewalla MSP' service device alongside the stats sensors.
-    Gated by CONF_ENABLE_TARGET_LISTS.
     """
 
     _attr_has_entity_name = True
@@ -466,21 +454,12 @@ class FirewallaTargetListSensor(CoordinatorEntity[FirewallaCoordinator], SensorE
         coordinator: FirewallaCoordinator,
         tl: dict[str, Any],
     ) -> None:
-        """Initialise the sensor from a target list dict."""
         super().__init__(coordinator)
         self._tl_id: str = tl["id"]
-        # Scope to entry_id: target lists are account-level objects that could
-        # overlap across MSP tokens — without this, multi-account installs
-        # silently drop the second account's target list sensors.
         self._attr_unique_id = (
             f"{DOMAIN}_target_list_{self._tl_id}_{coordinator.config_entry.entry_id}"
         )
-
-        # Use the TL name as the entity name within the MSP device
         self._attr_name = tl.get("name", self._tl_id)
-
-        # Entry-scoped identifier keeps this sensor on the correct per-account
-        # 'Firewalla MSP' device card.
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"msp_global_{coordinator.config_entry.entry_id}")},
             name="Firewalla MSP",
@@ -490,9 +469,6 @@ class FirewallaTargetListSensor(CoordinatorEntity[FirewallaCoordinator], SensorE
         )
 
     def _get_tl(self) -> dict[str, Any] | None:
-        """Find this target list in the latest coordinator data."""
-        # v2.4.9.1: Guard against coordinator.data being None — matches the
-        # pattern used in binary_sensor.py, switch.py, and device_tracker.py.
         if not self.coordinator.data:
             return None
         return next(
@@ -506,13 +482,6 @@ class FirewallaTargetListSensor(CoordinatorEntity[FirewallaCoordinator], SensorE
 
     @property
     def native_value(self) -> int | None:
-        """Return the number of entries in the target list.
-
-        Firewalla-owned/system lists (e.g. HaGeZi's Pro Blocklist) return an
-        empty `targets` array but populate `count` with the real entry count.
-        User-managed lists may populate `targets` directly. We prefer `count`
-        when present, falling back to len(targets) for lists without it.
-        """
         tl = self._get_tl()
         if tl is None:
             return None
@@ -522,14 +491,10 @@ class FirewallaTargetListSensor(CoordinatorEntity[FirewallaCoordinator], SensorE
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """Expose target list metadata and contents as attributes."""
         tl = self._get_tl()
         if not tl:
             return {}
 
-        # lastUpdated is a Unix float timestamp — convert to ISO 8601 string
-        # so HA history and the UI display a human-readable date rather than
-        # a raw number (e.g. 1,772,445,412).
         last_updated_raw = tl.get("lastUpdated")
         last_updated_iso: str | None = None
         if last_updated_raw is not None:
