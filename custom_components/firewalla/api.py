@@ -83,9 +83,7 @@ class FirewallaApiClient:
         """
         url = f"{self._base_url}/{endpoint}"
 
-        # Honour Retry-After from a previous 429 response.  Return None
-        # (same as a transient error) so the coordinator falls back to
-        # cached data without hammering a rate-limited endpoint.
+        # Honour Retry-After from a previous 429 response.
         now_mono = time.monotonic()
         if now_mono < self._rate_limited_until:
             remaining = int(self._rate_limited_until - now_mono)
@@ -106,8 +104,6 @@ class FirewallaApiClient:
                     json=json_data,
                 )
 
-                # --- All body reads are inside the timeout context ---
-
                 if response.status == 401:
                     body = await response.text()
                     _LOGGER.error("HTTP 401 from %s: %s", url, body)
@@ -120,7 +116,6 @@ class FirewallaApiClient:
                         retry_seconds = int(retry_after_hdr)
                     except (ValueError, TypeError):
                         retry_seconds = 60
-                    # Clamp to a sane range: at least 30s, at most 600s (10 min)
                     retry_seconds = max(30, min(retry_seconds, 600))
                     self._rate_limited_until = time.monotonic() + retry_seconds
                     _LOGGER.warning(
@@ -130,16 +125,9 @@ class FirewallaApiClient:
                     )
                     return None
 
-                # Detect unexpected HTML (e.g. WAF block page, reverse proxy
-                # error, login redirect) after handling auth/rate-limit status
-                # codes. Include the HTTP status code in the log message so
-                # operators can distinguish a 403 WAF block from a 503
-                # maintenance page.
                 ct = response.headers.get("Content-Type", "")
                 if "text/html" in ct:
                     body = await response.text()
-                    # v2.4.9.1: Case-insensitive check — some WAF/proxy pages
-                    # use <HTML>, <Html>, or other casing.
                     if "<html" in body.lower():
                         _LOGGER.error(
                             "HTML instead of JSON from %s (HTTP %s)",
@@ -153,7 +141,6 @@ class FirewallaApiClient:
                     _LOGGER.error("HTTP %s from %s: %s", response.status, url, body)
                     return None
 
-                # 204 No Content — successful action, no body
                 if response.status == 204:
                     return True
 
@@ -165,10 +152,6 @@ class FirewallaApiClient:
                     return None
 
                 # Unwrap {"data": [...]} or {"data": {...}} envelope if present.
-                # v2.4.9: Use positive type check (list/dict) instead of negative
-                # exclusion. This prevents unwrapping {"data": null} as a valid
-                # result — callers checking `if result is None` would otherwise
-                # misinterpret it as a failed request.
                 if (
                     isinstance(result, dict)
                     and "data" in result
@@ -195,13 +178,7 @@ class FirewallaApiClient:
     # ------------------------------------------------------------------
 
     async def get_boxes(self) -> list[dict[str, Any]] | None:
-        """GET /v2/boxes — list all Firewalla boxes.
-
-        Returns
-        -------
-        list  — boxes from the API (may be empty for a genuine zero-box account).
-        None  — API call failed (network error, server error, unexpected response).
-        """
+        """GET /v2/boxes — list all Firewalla boxes."""
         try:
             result = await self._api_request("GET", "boxes")
         except FirewallaAuthError:
@@ -234,13 +211,7 @@ class FirewallaApiClient:
         return processed
 
     async def get_devices(self) -> list[dict[str, Any]] | None:
-        """GET /v2/devices — list all devices across all networks.
-
-        Returns
-        -------
-        list  — devices from the API (may be empty if no devices are registered).
-        None  — API call failed (network error, server error, unexpected response).
-        """
+        """GET /v2/devices — list all devices across all networks."""
         try:
             result = await self._api_request("GET", "devices")
         except FirewallaAuthError:
@@ -266,12 +237,8 @@ class FirewallaApiClient:
                     or device.get("ip")
                     or f"device_{len(processed)}"
                 )
-            # Synthesise 'mac' from 'id' — MSP device ID is the MAC address
             if "mac" not in device and ":" in device.get("id", ""):
                 device["mac"] = device["id"]
-            # Derive online status from lastActiveTimestamp if missing.
-            # Use UTC explicitly — naive datetime.now() produces local time
-            # and gives wrong results when the HA host timezone is not UTC.
             if "online" not in device:
                 last_active = device.get("lastActiveTimestamp")
                 if last_active:
@@ -285,27 +252,50 @@ class FirewallaApiClient:
         return processed
 
     async def get_rules(self) -> list[dict[str, Any]]:
-        """GET /v2/rules — list all firewall rules.
+        """GET /v2/rules — list all firewall rules with cursor pagination.
 
-        The API returns ``{count, results}``; we return just the results list.
+        Follows ``next_cursor`` to retrieve all rules (safety cap _MAX_PAGES).
+        Previously fetched only the first page, causing newly-created rules
+        to be silently omitted if they appeared on subsequent pages.
         """
-        try:
-            result = await self._api_request("GET", "rules")
-        except FirewallaAuthError:
-            raise
-        except Exception as exc:  # noqa: BLE001
-            _LOGGER.error("Error getting rules: %s", exc)
-            return []
+        all_rules: list[dict[str, Any]] = []
+        params: dict[str, Any] = {"limit": 200}
 
-        if isinstance(result, dict) and "results" in result:
-            return result["results"] if isinstance(result["results"], list) else []
-        return result if isinstance(result, list) else []
+        for _page in range(_MAX_PAGES):
+            try:
+                result = await self._api_request("GET", "rules", params=params)
+            except FirewallaAuthError:
+                raise
+            except Exception as exc:  # noqa: BLE001
+                _LOGGER.error("Error getting rules (page %d): %s", _page, exc)
+                break
+
+            if not result:
+                break
+
+            if isinstance(result, dict):
+                results = result.get("results", [])
+                next_cursor = result.get("next_cursor")
+            elif isinstance(result, list):
+                # API returned a bare list — no pagination available
+                results = result
+                next_cursor = None
+            else:
+                break
+
+            for rule in results:
+                if isinstance(rule, dict):
+                    all_rules.append(rule)
+
+            if not next_cursor:
+                break
+            params["cursor"] = next_cursor
+
+        _LOGGER.debug("Retrieved %d rules", len(all_rules))
+        return all_rules
 
     async def get_alarms(self) -> list[dict[str, Any]]:
-        """GET /v2/alarms — list active alarms with cursor pagination.
-
-        Follows ``next_cursor`` to retrieve all active alarms (safety cap 4 000).
-        """
+        """GET /v2/alarms — list active alarms with cursor pagination."""
         all_alarms: list[dict[str, Any]] = []
         params: dict[str, Any] = {"query": "status:active", "limit": 200}
 
@@ -370,10 +360,7 @@ class FirewallaApiClient:
         return result if isinstance(result, list) else []
 
     async def get_simple_stats(self) -> dict[str, Any]:
-        """GET /v2/stats/simple — lightweight fleet health stats.
-
-        Returns ``{onlineBoxes, offlineBoxes, alarms, rules}``.
-        """
+        """GET /v2/stats/simple — lightweight fleet health stats."""
         try:
             result = await self._api_request("GET", "stats/simple")
         except FirewallaAuthError:
@@ -389,10 +376,7 @@ class FirewallaApiClient:
     # ------------------------------------------------------------------
 
     async def async_delete_alarm(self, gid: str, aid: str | int) -> bool:
-        """DELETE /v2/alarms/:gid/:aid — delete (dismiss) an alarm.
-
-        Returns True on success (HTTP 200/204), False otherwise.
-        """
+        """DELETE /v2/alarms/:gid/:aid — delete (dismiss) an alarm."""
         try:
             result = await self._api_request("DELETE", f"alarms/{gid}/{aid}")
         except FirewallaAuthError:
@@ -403,11 +387,7 @@ class FirewallaApiClient:
         return result is not None
 
     async def async_delete_device(self, box_id: str, device_id: str) -> bool:
-        """DELETE /v2/boxes/:boxId/devices/:deviceId — remove a device from Firewalla.
-
-        Permanently removes the device record from the Firewalla box.
-        Returns True on success (HTTP 200/204), False otherwise.
-        """
+        """DELETE /v2/boxes/:boxId/devices/:deviceId — remove a device."""
         try:
             result = await self._api_request(
                 "DELETE",
@@ -421,10 +401,7 @@ class FirewallaApiClient:
         return result is not None
 
     async def async_pause_rule(self, rule_id: str) -> bool:
-        """POST /v2/rules/:id/pause — pause an active rule.
-
-        Returns True on success (HTTP 200/204), False otherwise.
-        """
+        """POST /v2/rules/:id/pause — pause an active rule."""
         try:
             result = await self._api_request("POST", f"rules/{rule_id}/pause")
         except FirewallaAuthError:
@@ -435,10 +412,7 @@ class FirewallaApiClient:
         return result is not None
 
     async def async_resume_rule(self, rule_id: str) -> bool:
-        """POST /v2/rules/:id/resume — resume a paused rule.
-
-        Returns True on success (HTTP 200/204), False otherwise.
-        """
+        """POST /v2/rules/:id/resume — resume a paused rule."""
         try:
             result = await self._api_request("POST", f"rules/{rule_id}/resume")
         except FirewallaAuthError:
@@ -451,10 +425,7 @@ class FirewallaApiClient:
     async def async_rename_device(
         self, box_id: str, device_id: str, name: str
     ) -> bool:
-        """PATCH /v2/boxes/:boxId/devices/:deviceId — rename a device.
-
-        Requires MSP 2.9+.  Returns True on success, False otherwise.
-        """
+        """PATCH /v2/boxes/:boxId/devices/:deviceId — rename a device."""
         try:
             result = await self._api_request(
                 "PATCH",
@@ -477,11 +448,7 @@ class FirewallaApiClient:
         query: str,
         limit: int = 50,
     ) -> dict[str, Any]:
-        """GET /v2/alarms?query=…&limit=… — search alarms with pagination.
-
-        Returns ``{count: int, results: list}`` aggregated across pages
-        (up to 10 pages).
-        """
+        """GET /v2/alarms?query=…&limit=… — search alarms with pagination."""
         return await self._paginated_search("alarms", query, limit, max_pages=10)
 
     async def search_flows(
@@ -489,11 +456,7 @@ class FirewallaApiClient:
         query: str,
         limit: int = 50,
     ) -> dict[str, Any]:
-        """GET /v2/flows?query=…&limit=… — search flows with pagination.
-
-        Returns ``{count: int, results: list}`` aggregated across pages
-        (up to 10 pages).
-        """
+        """GET /v2/flows?query=…&limit=… — search flows with pagination."""
         return await self._paginated_search("flows", query, limit, max_pages=10)
 
     async def _paginated_search(

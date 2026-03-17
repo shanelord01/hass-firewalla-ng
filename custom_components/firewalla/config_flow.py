@@ -21,6 +21,7 @@ from .api import FirewallaApiClient
 from .const import (
     CONF_API_TOKEN,
     CONF_BOX_FILTER,
+    CONF_DEBUG_LOGGING,
     CONF_ENABLE_ALARMS,
     CONF_ENABLE_FLOWS,
     CONF_ENABLE_RULES,
@@ -44,12 +45,7 @@ _SUBDOMAIN_RE = re.compile(r"^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$")
 
 
 def _validate_subdomain(value: str) -> str:
-    """Validate and normalise a subdomain value.
-
-    Must be called in the handler, not embedded in the voluptuous schema —
-    voluptuous_serialize cannot serialise bare Python functions and will raise
-    ValueError when HA tries to render the config flow form (HTTP 500).
-    """
+    """Validate and normalise a subdomain value."""
     value = value.strip().lower()
     if not _SUBDOMAIN_RE.match(value):
         raise vol.Invalid(
@@ -76,9 +72,6 @@ class FirewallaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            # Validate subdomain manually — cannot be done in the schema because
-            # voluptuous_serialize rejects bare Python callables and raises a
-            # ValueError that surfaces as HTTP 500 before the form renders.
             try:
                 user_input[CONF_SUBDOMAIN] = _validate_subdomain(
                     user_input[CONF_SUBDOMAIN]
@@ -94,9 +87,6 @@ class FirewallaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     subdomain=user_input[CONF_SUBDOMAIN],
                 )
                 try:
-                    # Use get_boxes() directly — a non-empty result confirms valid
-                    # credentials without a separate async_check_credentials() call
-                    # that would hit GET /boxes twice in rapid succession.
                     boxes = await client.get_boxes()
                 except FirewallaAuthError:
                     errors["base"] = "invalid_auth"
@@ -104,23 +94,17 @@ class FirewallaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     _LOGGER.exception("Error during Firewalla credential check")
                     errors["base"] = "cannot_connect"
                 else:
-                    # get_boxes() returns None on API failure (network error,
-                    # server error, unexpected response) and [] on a genuine
-                    # empty-but-valid account. Distinguish the two so the user
-                    # sees the correct error message.
                     if boxes is None:
                         errors["base"] = "cannot_connect"
                     elif boxes:
                         self._boxes = boxes
                         self._user_input = user_input
 
-                        # If only one box, skip selection step
                         if len(self._boxes) <= 1:
                             return await self._async_create_entry(box_filter=[])
 
                         return await self.async_step_select_boxes()
                     else:
-                        # Genuine empty list — valid credentials but zero boxes
                         errors["base"] = "no_boxes"
 
         schema = vol.Schema(
@@ -199,18 +183,11 @@ class FirewallaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         subdomain = self._user_input[CONF_SUBDOMAIN]
         token = self._user_input[CONF_API_TOKEN]
 
-        # Use a SHA-256 hash prefix instead of raw token characters so the
-        # persistent unique_id in .storage/core.config_entries does not leak
-        # any part of the API token to filesystem readers.
         token_hash = hashlib.sha256(token.encode()).hexdigest()[:12]
         unique_id = f"{subdomain}_{token_hash}"
         await self.async_set_unique_id(unique_id)
         self._abort_if_unique_id_configured()
 
-        # Backwards compatibility: entries created before v2.5 used the last
-        # 8 characters of the raw token as the unique_id suffix.  Check for
-        # an existing entry with the old format to prevent duplicate config
-        # entries when the user re-adds the same account after upgrading.
         old_unique_id = f"{subdomain}_{token[-8:]}"
         for existing in self.hass.config_entries.async_entries(DOMAIN):
             if existing.unique_id == old_unique_id:
@@ -246,7 +223,6 @@ class FirewallaOptionsFlow(config_entries.OptionsFlow):
                 key, self.config_entry.data.get(key, default)
             )
 
-        # Build box selector if we have boxes in the coordinator
         coordinator = self.config_entry.runtime_data.coordinator if hasattr(
             self.config_entry, "runtime_data"
         ) else None
@@ -288,6 +264,10 @@ class FirewallaOptionsFlow(config_entries.OptionsFlow):
                 CONF_STALE_DAYS,
                 default=_current(CONF_STALE_DAYS, DEFAULT_STALE_DAYS),
             ): vol.All(int, vol.Range(min=1, max=365)),
+            vol.Optional(
+                CONF_DEBUG_LOGGING,
+                default=_current(CONF_DEBUG_LOGGING, False),
+            ): bool,
         }
 
         # Only show box filter if there are multiple boxes

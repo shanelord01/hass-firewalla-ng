@@ -40,16 +40,25 @@ async def async_setup_entry(
         if not coordinator.data:
             return
 
+        rules = coordinator.data.get("rules", [])
+        _LOGGER.debug(
+            "Rule listener fired — %d rules in coordinator data, %d already known",
+            len(rules),
+            len(known_rule_ids),
+        )
+
         new_entities: list[SwitchEntity] = []
-        for rule in coordinator.data.get("rules", []):
+        for rule in rules:
             if not isinstance(rule, dict) or "id" not in rule:
                 continue
             rule_id = str(rule["id"])
             if rule_id not in known_rule_ids:
+                _LOGGER.debug("Registering new rule entity: %s", rule_id)
                 known_rule_ids.add(rule_id)
                 new_entities.append(FirewallaRuleSwitch(coordinator, rule))
 
         if new_entities:
+            _LOGGER.debug("Adding %d new rule switch entities", len(new_entities))
             async_add_entities(new_entities)
 
     # Register entities already present at setup time.

@@ -57,14 +57,16 @@
           "track_devices": "Activer le suivi des appareils",
           "stale_days": "Suppression des appareils obsolètes (jours)",
           "box_filter": "Box actifs",
-          "enable_target_lists": "Activer les capteurs de listes cibles"
+          "enable_target_lists": "Activer les capteurs de listes cibles",
+          "debug_logging": "Activer la journalisation de débogage"
         },
         "data_description": {
           "stale_days": "Les appareils absents de l'API pendant ce nombre de jours seront supprimés de Home Assistant.",
           "enable_flows": "Crée un capteur par flux réseau récent. Peut générer de nombreuses entités.",
           "enable_traffic": "Ajoute des capteurs de téléchargement/envoi par appareil.",
           "box_filter": "Sélectionnez les Firewalla Box à surveiller. Tous les Box sont inclus par défaut.",
-          "enable_target_lists": "Crée un capteur par liste cible. Chaque capteur affiche le nombre d'entrées avec les domaines/IP en attributs."
+          "enable_target_lists": "Crée un capteur par liste cible. Chaque capteur affiche le nombre d'entrées avec les domaines/IP en attributs.",
+          "debug_logging": "Écrire des informations de débogage détaillées dans le journal Home Assistant. Désactiver lorsque vous ne résolvez pas activement des problèmes."
         }
       }
     }

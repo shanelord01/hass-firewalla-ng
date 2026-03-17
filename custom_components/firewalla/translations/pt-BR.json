@@ -57,14 +57,16 @@
           "track_devices": "Ativar rastreamento de dispositivos",
           "stale_days": "Remoção de dispositivos inativos (dias)",
           "box_filter": "Boxes ativos",
-          "enable_target_lists": "Ativar sensores de listas de destino"
+          "enable_target_lists": "Ativar sensores de listas de destino",
+          "debug_logging": "Ativar registro de depuração"
         },
         "data_description": {
           "stale_days": "Dispositivos ausentes da API por este número de dias serão removidos do Home Assistant.",
           "enable_flows": "Cria um sensor por fluxo de tráfego recente. Pode gerar muitas entidades.",
           "enable_traffic": "Adiciona sensores de download/upload por dispositivo.",
           "box_filter": "Selecione quais Firewalla Boxes monitorar. Todos estão incluídos por padrão.",
-          "enable_target_lists": "Cria um sensor por lista de destino. Cada sensor mostra a contagem de entradas com domínios/IPs em atributos."
+          "enable_target_lists": "Cria um sensor por lista de destino. Cada sensor mostra a contagem de entradas com domínios/IPs em atributos.",
+          "debug_logging": "Grava saída de depuração detalhada no registro do Home Assistant. Desative quando não estiver solucionando problemas ativamente."
         }
       }
     }

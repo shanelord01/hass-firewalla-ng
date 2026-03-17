@@ -57,14 +57,16 @@
           "track_devices": "Geräteverfolgung aktivieren",
           "stale_days": "Veraltete Geräte entfernen (Tage)",
           "box_filter": "Aktive Boxen",
-          "enable_target_lists": "Ziellisten-Sensoren aktivieren"
+          "enable_target_lists": "Ziellisten-Sensoren aktivieren",
+          "debug_logging": "Debug-Protokollierung aktivieren"
         },
         "data_description": {
           "stale_days": "Geräte, die so viele Tage nicht von der API gemeldet werden, werden aus Home Assistant entfernt.",
           "enable_flows": "Erstellt einen Sensor pro aktuellem Datenfluss. Kann viele Entitäten erzeugen.",
           "enable_traffic": "Fügt Download-/Upload-Sensoren pro Gerät hinzu.",
           "box_filter": "Wähle aus, welche Firewalla-Boxen überwacht werden sollen. Standardmäßig sind alle Boxen enthalten.",
-          "enable_target_lists": "Erstellt einen Sensor pro Zielliste. Jeder Sensor zeigt die Anzahl der Einträge mit Domains/IPs in Attributen."
+          "enable_target_lists": "Erstellt einen Sensor pro Zielliste. Jeder Sensor zeigt die Anzahl der Einträge mit Domains/IPs in Attributen.",
+          "debug_logging": "Ausführliche Debug-Ausgaben in das Home Assistant-Protokoll schreiben. Deaktivieren, wenn keine aktive Fehlersuche stattfindet."
         }
       }
     }

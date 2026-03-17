@@ -24,6 +24,7 @@ CONF_ENABLE_TARGET_LISTS: Final = "enable_target_lists"
 CONF_TRACK_DEVICES: Final = "track_devices"
 CONF_STALE_DAYS: Final = "stale_days"
 CONF_BOX_FILTER: Final = "box_filter"
+CONF_DEBUG_LOGGING: Final = "debug_logging"
 
 # Defaults
 DEFAULT_SUBDOMAIN: Final = "api"

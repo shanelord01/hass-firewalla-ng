@@ -226,10 +226,18 @@ class FirewallaNetworkNameSensor(_FirewallaSensor):
 
 
 class FirewallaTotalDownloadSensor(_FirewallaSensor):
-    """Total download bytes (converted to kB) for a device."""
+    """Total download bytes (converted to kB) for a device.
+
+    Uses TOTAL rather than TOTAL_INCREASING because Firewalla's totalDownload
+    counter is a rolling/resettable accumulated value, not a monotonically
+    increasing lifetime counter. TOTAL supports accumulated values that can
+    decrease (e.g. when a rolling window expires) without triggering HA
+    recorder warnings. MEASUREMENT is intentionally avoided as it implies
+    an instantaneous point-in-time reading rather than an accumulated total.
+    """
 
     _attr_device_class = SensorDeviceClass.DATA_SIZE
-    _attr_state_class = SensorStateClass.TOTAL_INCREASING
+    _attr_state_class = SensorStateClass.TOTAL
     _attr_native_unit_of_measurement = UnitOfInformation.KILOBYTES
 
     def __init__(self, coordinator: FirewallaCoordinator, device: dict[str, Any]) -> None:
@@ -244,10 +252,14 @@ class FirewallaTotalDownloadSensor(_FirewallaSensor):
 
 
 class FirewallaTotalUploadSensor(_FirewallaSensor):
-    """Total upload bytes (converted to kB) for a device."""
+    """Total upload bytes (converted to kB) for a device.
+
+    Uses TOTAL for the same reason as FirewallaTotalDownloadSensor — the
+    Firewalla API returns a rolling accumulated value, not a lifetime counter.
+    """
 
     _attr_device_class = SensorDeviceClass.DATA_SIZE
-    _attr_state_class = SensorStateClass.TOTAL_INCREASING
+    _attr_state_class = SensorStateClass.TOTAL
     _attr_native_unit_of_measurement = UnitOfInformation.KILOBYTES
 
     def __init__(self, coordinator: FirewallaCoordinator, device: dict[str, Any]) -> None:

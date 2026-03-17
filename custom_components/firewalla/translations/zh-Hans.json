@@ -57,14 +57,16 @@
           "track_devices": "启用设备追踪",
           "stale_days": "移除过期设备（天）",
           "box_filter": "活跃 Box",
-          "enable_target_lists": "启用目标列表传感器"
+          "enable_target_lists": "启用目标列表传感器",
+          "debug_logging": "启用调试日志"
         },
         "data_description": {
           "stale_days": "API 中缺失超过此天数的设备将从 Home Assistant 中移除。",
           "enable_flows": "为每个近期流量创建一个传感器。可能会生成大量实体。",
           "enable_traffic": "为每个设备添加下载/上传传感器。",
           "box_filter": "选择要监控的 Firewalla Box。默认包含所有 Box。",
-          "enable_target_lists": "为每个目标列表创建一个传感器。每个传感器在属性中显示条目数量及域名/IP。"
+          "enable_target_lists": "为每个目标列表创建一个传感器。每个传感器在属性中显示条目数量及域名/IP。",
+          "debug_logging": "将详细调试信息写入 Home Assistant 日志。不在主动排查问题时请禁用。"
         }
       }
     }

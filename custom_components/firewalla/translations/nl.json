@@ -57,14 +57,16 @@
           "track_devices": "Apparaattracking inschakelen",
           "stale_days": "Verouderde apparaten verwijderen (dagen)",
           "box_filter": "Actieve boxen",
-          "enable_target_lists": "Doellijstsensoren inschakelen"
+          "enable_target_lists": "Doellijstsensoren inschakelen",
+          "debug_logging": "Foutopsporingslogboek inschakelen"
         },
         "data_description": {
           "stale_days": "Apparaten die zo lang niet door de API zijn gemeld, worden uit Home Assistant verwijderd.",
           "enable_flows": "Maakt een sensor per recente verkeersstroom. Kan veel entiteiten genereren.",
           "enable_traffic": "Voegt download-/uploadsensoren per apparaat toe.",
           "box_filter": "Selecteer welke Firewalla-boxen je wilt monitoren. Alle boxen zijn standaard inbegrepen.",
-          "enable_target_lists": "Maakt een sensor per doellijst. Elke sensor toont het aantal items met domeinen/IP's in attributen."
+          "enable_target_lists": "Maakt een sensor per doellijst. Elke sensor toont het aantal items met domeinen/IP's in attributen.",
+          "debug_logging": "Schrijft uitgebreide foutopsporingsinformatie naar het Home Assistant-logboek. Schakel uit wanneer je niet actief problemen oplost."
         }
       }
     }

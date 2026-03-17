@@ -57,14 +57,16 @@
           "track_devices": "기기 추적 활성화",
           "stale_days": "오래된 기기 제거 (일)",
           "box_filter": "활성 박스",
-          "enable_target_lists": "대상 목록 센서 활성화"
+          "enable_target_lists": "대상 목록 센서 활성화",
+          "debug_logging": "디버그 로깅 활성화"
         },
         "data_description": {
           "stale_days": "API에서 이 기간 동안 감지되지 않은 기기는 Home Assistant에서 제거됩니다.",
           "enable_flows": "최근 트래픽 흐름마다 센서를 생성합니다. 많은 엔티티가 생성될 수 있습니다.",
           "enable_traffic": "기기별 다운로드/업로드 센서를 추가합니다.",
           "box_filter": "모니터링할 Firewalla 박스를 선택하세요. 기본적으로 모든 박스가 포함됩니다.",
-          "enable_target_lists": "대상 목록별로 센서를 생성합니다. 각 센서는 속성에 도메인/IP와 항목 수를 표시합니다."
+          "enable_target_lists": "대상 목록별로 센서를 생성합니다. 각 센서는 속성에 도메인/IP와 항목 수를 표시합니다.",
+          "debug_logging": "Home Assistant 로그에 상세한 디버그 정보를 기록합니다. 문제를 적극적으로 해결하지 않을 때는 비활성화하세요."
         }
       }
     }

@@ -57,14 +57,16 @@
           "track_devices": "Enable Device Tracker",
           "stale_days": "Stale Device Removal (days)",
           "box_filter": "Active Boxes",
-          "enable_target_lists": "Enable Target List Sensors"
+          "enable_target_lists": "Enable Target List Sensors",
+          "debug_logging": "Enable Debug Logging"
         },
         "data_description": {
           "stale_days": "Devices absent from the API for this many days will be removed from Home Assistant.",
           "enable_flows": "Creates a sensor per recent traffic flow. Can generate many entities.",
           "enable_traffic": "Adds per-device download/upload sensors.",
           "box_filter": "Select which Firewalla boxes to monitor. All boxes are included by default.",
-          "enable_target_lists": "Creates a sensor per target list. Each sensor shows entry count with domains/IPs in attributes."
+          "enable_target_lists": "Creates a sensor per target list. Each sensor shows entry count with domains/IPs in attributes.",
+          "debug_logging": "Write verbose debug output to the Home Assistant log. Disable when not actively troubleshooting."
         }
       }
     }

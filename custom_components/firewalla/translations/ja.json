@@ -57,14 +57,16 @@
           "track_devices": "デバイストラッカーを有効にする",
           "stale_days": "古いデバイスの削除（日数）",
           "box_filter": "アクティブなボックス",
-          "enable_target_lists": "ターゲットリストセンサーを有効にする"
+          "enable_target_lists": "ターゲットリストセンサーを有効にする",
+          "debug_logging": "デバッグログを有効にする"
         },
         "data_description": {
           "stale_days": "API からこの日数間検出されないデバイスは Home Assistant から削除されます。",
           "enable_flows": "最近のトラフィックフローごとにセンサーを作成します。多数のエンティティが生成される場合があります。",
           "enable_traffic": "デバイスごとにダウンロード/アップロードセンサーを追加します。",
           "box_filter": "監視する Firewalla ボックスを選択してください。デフォルトではすべてのボックスが含まれます。",
-          "enable_target_lists": "ターゲットリストごとにセンサーを作成します。各センサーは属性にドメイン/IP とエントリ数を表示します。"
+          "enable_target_lists": "ターゲットリストごとにセンサーを作成します。各センサーは属性にドメイン/IP とエントリ数を表示します。",
+          "debug_logging": "詳細なデバッグ情報を Home Assistant ログに書き込みます。問題を積極的にトラブルシューティングしていない場合は無効にしてください。"
         }
       }
     }

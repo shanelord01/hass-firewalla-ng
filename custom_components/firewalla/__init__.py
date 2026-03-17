@@ -17,6 +17,7 @@ from .api import FirewallaApiClient
 from .const import (
     ATTR_ALARM_ID,
     CONF_API_TOKEN,
+    CONF_DEBUG_LOGGING,
     CONF_ENABLE_ALARMS,
     CONF_ENABLE_FLOWS,
     CONF_ENABLE_RULES,
@@ -89,6 +90,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await coordinator.async_config_entry_first_refresh()
 
     entry.runtime_data = FirewallaData(client, coordinator)
+
+    # Apply debug logging preference before platforms load so any setup
+    # debug messages are captured if the user has the toggle enabled.
+    _async_apply_debug_logging(entry)
 
     # Pre-register box devices in the HA device registry before any platform
     # sets up entities.  Sensor, device_tracker, switch, and binary_sensor
@@ -185,9 +190,29 @@ async def async_remove_config_entry_device(
 
 
 async def _async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Handle options update — clean up orphaned entities, then reload."""
+    """Handle options update — apply log level, clean up orphaned entities, then reload."""
+    _async_apply_debug_logging(entry)
     _async_cleanup_disabled_entities(hass, entry)
     await hass.config_entries.async_reload(entry.entry_id)
+
+
+# -----------------------------------------------------------------------
+# Debug logging
+# -----------------------------------------------------------------------
+
+def _async_apply_debug_logging(entry: ConfigEntry) -> None:
+    """Set the integration logger level based on the debug_logging option.
+
+    Applies immediately without requiring an HA restart. Reverts to WARNING
+    when the toggle is turned off, overriding any level set via the HA UI
+    logger panel for this integration.
+    """
+    logger = logging.getLogger("custom_components.firewalla")
+    if entry.options.get(CONF_DEBUG_LOGGING, entry.data.get(CONF_DEBUG_LOGGING, False)):
+        logger.setLevel(logging.DEBUG)
+        _LOGGER.debug("Debug logging enabled via integration options")
+    else:
+        logger.setLevel(logging.WARNING)
 
 
 # -----------------------------------------------------------------------
