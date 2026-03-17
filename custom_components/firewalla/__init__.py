@@ -34,6 +34,7 @@ from .const import (
     SERVICE_SEARCH_FLOWS,
 )
 from .coordinator import FirewallaCoordinator
+from .helpers import box_display_name, safe_configuration_url
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -89,6 +90,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     entry.runtime_data = FirewallaData(client, coordinator)
 
+    # Pre-register box devices in the HA device registry before any platform
+    # sets up entities.  Sensor, device_tracker, switch, and binary_sensor
+    # platforms all reference box devices via `via_device`.  If the box device
+    # doesn't exist in the registry when those entities are created, HA logs a
+    # warning and will refuse the reference from 2025.12 onwards.
+    # Pre-registering here guarantees the box device exists regardless of
+    # platform setup order.
+    _async_preregister_boxes(hass, entry, coordinator)
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_async_update_options))
 
@@ -126,24 +136,11 @@ async def async_remove_config_entry_device(
     config_entry: ConfigEntry,
     device_entry: dr.DeviceEntry,
 ) -> bool:
-    """Handle the 'Delete' button on a device page in the HA UI.
-
-    Called by HA when the user clicks Delete on a device card.
-    Box devices and the MSP service device are not deletable via this path —
-    return False to block.
-    For network devices, call the Firewalla API to remove the device record,
-    then return True to allow HA to remove it from the device registry.
-    If the API call fails we still return True so the user can clean up
-    stale HA entries for devices that no longer exist on the Firewalla side.
-    """
-    # Identify the Firewalla device ID from the HA device identifiers
+    """Handle the 'Delete' button on a device page in the HA UI."""
     fw_device_id: str | None = None
     for domain, identifier in device_entry.identifiers:
         if domain != DOMAIN:
             continue
-        # v2.4.9.1: Block deletion of box devices AND the MSP service device.
-        # Without the msp_global_ check, clicking Delete on the 'Firewalla MSP'
-        # device card orphans all MSP-level entities until next reload.
         if identifier.startswith("box_") or identifier.startswith("msp_global_"):
             return False
         fw_device_id = identifier
@@ -154,7 +151,6 @@ async def async_remove_config_entry_device(
     coordinator: FirewallaCoordinator = config_entry.runtime_data.coordinator
     client: FirewallaApiClient = config_entry.runtime_data.client
 
-    # Resolve box ID from coordinator data
     fw_box_id: str | None = None
     if coordinator.data:
         device_data = next(
@@ -195,17 +191,52 @@ async def _async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None
 
 
 # -----------------------------------------------------------------------
+# Box pre-registration
+# -----------------------------------------------------------------------
+
+def _async_preregister_boxes(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    coordinator: FirewallaCoordinator,
+) -> None:
+    """Register box devices in the HA device registry before platforms load.
+
+    Sensor, device_tracker, switch, and binary_sensor platforms all reference
+    box devices via `via_device`. Platform setup order is not guaranteed, so
+    the box device may not exist when a sensor tries to reference it.
+    Pre-registering here ensures the device entry exists before any entity
+    is created, eliminating the 'non existing via_device' warning introduced
+    in HA 2025.4 and enforced from 2025.12.
+    """
+    if not coordinator.data:
+        return
+
+    dev_reg = dr.async_get(hass)
+
+    for box in coordinator.data.get("boxes", []):
+        if not isinstance(box, dict) or "id" not in box:
+            continue
+        box_id = box["id"]
+        dev_reg.async_get_or_create(
+            config_entry_id=entry.entry_id,
+            identifiers={(DOMAIN, f"box_{box_id}")},
+            name=box_display_name(box),
+            manufacturer="Firewalla",
+            model=box.get("model", "Firewalla Box"),
+            sw_version=box.get("version"),
+            configuration_url=safe_configuration_url(box.get("publicIP")),
+        )
+        _LOGGER.debug("Pre-registered box device: box_%s", box_id)
+
+
+# -----------------------------------------------------------------------
 # Orphaned-entity cleanup
 # -----------------------------------------------------------------------
 
 def _async_cleanup_disabled_entities(
     hass: HomeAssistant, entry: ConfigEntry
 ) -> None:
-    """Remove entities belonging to features that the user has disabled.
-
-    Without this, turning off a feature toggle leaves the entities in the
-    registry as 'unavailable' rather than removing them cleanly.
-    """
+    """Remove entities belonging to features that the user has disabled."""
     opts = entry.options
 
     def _opt(key: str) -> bool:
@@ -213,7 +244,6 @@ def _async_cleanup_disabled_entities(
 
     ent_reg = er.async_get(hass)
 
-    # Map: feature flag → entity unique_id prefix patterns to remove
     cleanup_map: dict[str, list[str]] = {
         CONF_ENABLE_ALARMS: [
             f"{DOMAIN}_alarm_",
@@ -240,7 +270,7 @@ def _async_cleanup_disabled_entities(
 
     for flag, prefixes in cleanup_map.items():
         if _opt(flag):
-            continue  # Feature is enabled — keep entities
+            continue
         for ent in er.async_entries_for_config_entry(ent_reg, entry.entry_id):
             if any(ent.unique_id.startswith(p) for p in prefixes):
                 _LOGGER.debug("Removing orphaned entity %s", ent.entity_id)
@@ -255,7 +285,7 @@ def _async_register_services(hass: HomeAssistant) -> None:
     """Register Firewalla domain services (idempotent)."""
 
     if hass.services.has_service(DOMAIN, SERVICE_DELETE_ALARM):
-        return  # Already registered by a previous config entry
+        return
 
     # -- delete_alarm ------------------------------------------------
 
@@ -277,8 +307,6 @@ def _async_register_services(hass: HomeAssistant) -> None:
                 _LOGGER.error("Entity %s has no alarm_id attribute", entity_id)
                 continue
 
-            # If gid not on alarm attributes, try to find it from the
-            # device that the alarm entity is attached to (the box).
             if not gid:
                 ent_reg = er.async_get(hass)
                 ent_entry = ent_reg.async_get(entity_id)
@@ -288,7 +316,6 @@ def _async_register_services(hass: HomeAssistant) -> None:
                     )
                     if cfg and hasattr(cfg, "runtime_data"):
                         coord = cfg.runtime_data.coordinator
-                        # Find the alarm in coordinator data to get gid
                         alarm = next(
                             (
                                 a
@@ -307,13 +334,11 @@ def _async_register_services(hass: HomeAssistant) -> None:
                 )
                 continue
 
-            # Find the client for this entity's config entry
             client = _client_for_entity(hass, entity_id)
             if not client:
                 _LOGGER.error("No API client found for %s", entity_id)
                 continue
 
-            # The API uses 'aid' (numeric), which may differ from 'id'
             aid = alarm_id
             if await client.async_delete_alarm(gid, aid):
                 _LOGGER.info("Deleted alarm %s/%s", gid, aid)
@@ -346,13 +371,10 @@ def _async_register_services(hass: HomeAssistant) -> None:
                 _LOGGER.error("Device %s not found", ha_device_id)
                 continue
 
-            # Extract the Firewalla device ID from the HA device identifiers
             fw_device_id: str | None = None
             for domain, identifier in device_entry.identifiers:
                 if domain != DOMAIN:
                     continue
-                # v2.4.9.1: Skip box and MSP service device identifiers —
-                # these are not renamable network devices.
                 if identifier.startswith("box_") or identifier.startswith("msp_global_"):
                     continue
                 fw_device_id = identifier
@@ -364,7 +386,6 @@ def _async_register_services(hass: HomeAssistant) -> None:
                 )
                 continue
 
-            # Find box_id from the device's via_device or coordinator data
             client: FirewallaApiClient | None = None
             fw_box_id: str | None = None
             for cfg in hass.config_entries.async_entries(DOMAIN):
