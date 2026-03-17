@@ -1,6 +1,6 @@
 # Firewalla MSP Integration for Home Assistant
 
-[![CurrentVersion](https://img.shields.io/badge/Current_Version-v2.4.9.2-orange.svg)](https://github.com/shanelord01/hass-firewalla-ng/releases)   [![Released](https://img.shields.io/badge/Released-March,_2026-orange.svg)](https://github.com/shanelord01/hass-firewalla-ng/releases)   [![HACS](https://img.shields.io/badge/HACS-Custom_Repository-darkorange.svg)](https://github.com/shanelord01/hass-firewalla-ng)
+[![CurrentVersion](https://img.shields.io/badge/Current_Version-v2.4.9.3-orange.svg)](https://github.com/shanelord01/hass-firewalla-ng/releases)   [![Released](https://img.shields.io/badge/Released-March,_2026-orange.svg)](https://github.com/shanelord01/hass-firewalla-ng/releases)   [![HACS](https://img.shields.io/badge/HACS-Custom_Repository-darkorange.svg)](https://github.com/shanelord01/hass-firewalla-ng)
 
 [![Type](https://img.shields.io/badge/Type-Custom_Component-forestgreen.svg)](https://github.com/shanelord01/hass-firewalla-ng)   [![HA](https://img.shields.io/badge/Home_Assistant-2024.4+-forestgreen.svg)](https://www.home-assistant.io)   [![ProjectStage](https://img.shields.io/badge/Project_Stage-General_Availability-forestgreen.svg)](https://github.com/shanelord01/hass-firewalla-ng)
 
@@ -24,6 +24,7 @@ Built against the [Firewalla MSP API v2](https://docs.firewalla.net/) for Home A
 | Individual alarm binary sensors | ❌ Off | Options → Alarm Sensors |
 | Firewall rule switch (active/paused toggle) | ❌ Off | Options → Rule Sensors |
 | Per-flow traffic sensors | ❌ Off | Options → Flow Sensors |
+| Target list sensors (entry count + contents) | ❌ Off | Options → Target List Sensors |
 | Automatic stale device cleanup | ✅ 30 days | Options → Stale Device Removal |
 | Stale device tracking persists across HA restarts | ✅ Always | — |
 
@@ -39,7 +40,7 @@ Call these from automations, scripts, or **Developer Tools → Actions**:
 | `firewalla.search_flows` | Search network flows by query and return results to an automation via `response_variable` |
 
 Firewall rules are paused and resumed using the native `switch.turn_off` / `switch.turn_on`
-services targeting the rule’s switch entity — no custom service required.
+services targeting the rule's switch entity — no custom service required.
 
 ---
 
@@ -49,7 +50,7 @@ services targeting the rule’s switch entity — no custom service required.
 
 HACS gives you one-click installs and automatic update notifications.
 
-**If you don’t have HACS yet:**
+**If you don't have HACS yet:**
 1. Follow the [HACS installation guide](https://hacs.xyz/docs/use/download/download/) to install it in Home Assistant.
 
 **Add this repository to HACS:**
@@ -69,7 +70,7 @@ HACS gives you one-click installs and automatic update notifications.
 1. Download this repository as a ZIP (click **Code → Download ZIP** on GitHub)
 2. Unzip it and copy the `custom_components/firewalla` folder into your Home Assistant
    `config/custom_components/` directory
-   *(create `custom_components` if it doesn’t exist)*
+   *(create `custom_components` if it doesn't exist)*
 3. Restart Home Assistant
 
 ---
@@ -101,7 +102,9 @@ All options can be changed after setup via **Settings → Devices & Services →
 | Enable Flow Sensors | Per-flow transfer sensor (can create many entities) | Off |
 | Enable Bandwidth Sensors | Download/upload totals per device | Off |
 | Enable Device Tracker | Presence detection via ScannerEntity | On |
+| Enable Target List Sensors | Entry count + contents per target list | Off |
 | Stale Device Removal | Days before absent devices are removed from HA | 30 |
+| Enable Debug Logging | Write verbose debug output to the HA log | Off |
 
 ---
 
@@ -118,23 +121,33 @@ services:
 # Pause a rule
 action: switch.turn_off
 target:
-  entity_id: switch.firewalla_block_netflix_rule
+  entity_id: switch.shasam_firewalla_block_test_user
 
 # Resume a rule
 action: switch.turn_on
 target:
-  entity_id: switch.firewalla_block_netflix_rule
+  entity_id: switch.shasam_firewalla_block_test_user
 ```
 
-The rule entity ID will match the pattern `switch.firewalla_<action>_<target>_rule`.
 You can find the exact entity ID in **Settings → Devices & Services → [your Firewalla box] → entities**.
+
+#### Rule display names
+
+Rule entities are named using the following priority:
+
+1. **Notes field** — if you have filled in the Notes field on a rule in the Firewalla portal, that text is used as the display name (e.g. `Block: Test User`, `Allow: Guest Printer Access`).
+2. **Composite label** — if no notes are set, the name is synthesised from the action, target, and scope: `Block: Internet on group 13`, `Allow: deb.debian.org on pi4nut`.
+
+Device-scoped rules resolve the MAC address against your device list to show the device name. Network and group scopes show a generic label (`network`, `group 13`) as these require API endpoints not currently available in the Firewalla MSP API.
+
+**Tip:** For the clearest rule names in Home Assistant, fill in the Notes field on each rule in the Firewalla portal.
 
 ### Delete an Alarm
 
 Requires **Alarm Sensors** to be enabled in options.
 
 In **Developer Tools → Actions**, select `Firewalla: Delete Alarm` and use the entity picker
-to choose the alarm’s binary sensor — no need to find internal IDs.
+to choose the alarm's binary sensor — no need to find internal IDs.
 
 In automations or scripts:
 
@@ -241,13 +254,10 @@ are never removed automatically. You can still manually delete them via
 
 ## Debug Logging
 
-```yaml
-# configuration.yaml
-logger:
-  default: info
-  logs:
-    custom_components.firewalla: debug
-```
+Enable verbose debug logging directly from the integration options — no `configuration.yaml` changes or restart required.
+
+Go to **Settings → Devices & Services → Firewalla → Configure** and toggle **Enable Debug Logging** on.
+Logs appear immediately in **Settings → System → Logs**. Disable the toggle when you are done troubleshooting.
 
 ---
 
