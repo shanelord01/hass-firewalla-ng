@@ -1,0 +1,7 @@
+# Force LF line endings for all files in this repo.
+# This is a Home Assistant custom component — deployed to Linux.
+* text=auto eol=lf
+*.py text eol=lf
+*.json text eol=lf
+*.yaml text eol=lf
+*.md text eol=lf
