@@ -47,3 +47,87 @@ def safe_configuration_url(raw_ip: str | None) -> str | None:
     if isinstance(addr, ipaddress.IPv6Address):
         return f"https://[{addr}]"
     return f"https://{addr}"
+
+
+def rule_display_name(
+    rule: dict,
+    devices: list[dict] | None = None,
+) -> str:
+    """Build a human-readable display name for a Firewalla rule.
+
+    Priority:
+    1. notes field — user-defined label, used as-is with action prefix.
+    2. Composite built from action + target + scope, resolving device MACs
+       against the coordinator device list where possible.
+
+    Examples:
+      notes="Test User"                     → "Block: Test User"
+      target=internet, scope=group 67       → "Block: Internet on group 67"
+      target=domain deb.debian.org, scope=device pi4nut (MAC resolved)
+                                            → "Allow: deb.debian.org on pi4nut"
+      target=ip 71.6.167.142, no scope      → "Block: 71.6.167.142"
+    """
+    action = rule.get("action", "rule").capitalize()
+    notes = (rule.get("notes") or "").strip()
+
+    if notes:
+        return f"{action}: {notes}"
+
+    target_label = _target_label(rule.get("target") or {})
+    scope_label = _scope_label(rule.get("scope") or {}, devices or [])
+
+    if scope_label:
+        return f"{action}: {target_label} on {scope_label}"
+    return f"{action}: {target_label}"
+
+
+def _target_label(target: dict) -> str:
+    """Return a human-readable label for a rule target."""
+    t_type = target.get("type", "")
+    t_value = target.get("value", "")
+
+    if t_type == "internet":
+        return "Internet"
+    if t_type == "intranet":
+        # Value is a network-segment UUID — not resolvable without an extra
+        # API call. Use a generic label; notes should be used for clarity.
+        return "Intranet"
+    if t_value:
+        return str(t_value)
+    return t_type or "Unknown"
+
+
+def _scope_label(scope: dict, devices: list[dict]) -> str:
+    """Return a human-readable label for a rule scope.
+
+    Device scopes are resolved against the coordinator device list by MAC
+    address. Network and group scopes return a generic label because their
+    UUIDs / numeric IDs are not resolvable without additional API endpoints.
+    """
+    if not scope:
+        return ""
+
+    s_type = scope.get("type", "")
+    s_value = scope.get("value", "")
+
+    if not s_value:
+        return ""
+
+    if s_type == "device":
+        mac_upper = s_value.upper()
+        device = next(
+            (d for d in devices if (d.get("mac") or "").upper() == mac_upper),
+            None,
+        )
+        if device and device.get("name"):
+            return device["name"]
+        return s_value  # Fall back to raw MAC
+
+    if s_type == "network":
+        # UUID — not resolvable without a /networks endpoint
+        return "network"
+
+    if s_type == "group":
+        return f"group {s_value}"
+
+    return s_type

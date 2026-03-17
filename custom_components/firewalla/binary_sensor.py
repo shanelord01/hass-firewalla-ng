@@ -22,7 +22,7 @@ from .const import (
     DOMAIN,
 )
 from .coordinator import FirewallaCoordinator
-from .helpers import box_display_name, first_box_id, safe_configuration_url
+from .helpers import box_display_name, first_box_id, rule_display_name, safe_configuration_url
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -253,14 +253,8 @@ class FirewallaRuleActiveSensor(_FirewallaBinarySensor):
         self._rule_id = rule["id"]
         self._attr_unique_id = f"{DOMAIN}_rule_{self._rule_id}"
 
-        action = rule.get("action", "Rule").capitalize()
-        target = (
-            rule.get("notes")
-            or rule.get("target", {}).get("value")
-            or rule.get("scope", {}).get("value")
-            or self._rule_id
-        )
-        self._attr_name = f"{action}: {target}"
+        devices = coordinator.data.get("devices", []) if coordinator.data else []
+        self._attr_name = rule_display_name(rule, devices)
 
         box_id = rule.get("gid") or first_box_id(coordinator.data)
         self._attr_device_info = DeviceInfo(

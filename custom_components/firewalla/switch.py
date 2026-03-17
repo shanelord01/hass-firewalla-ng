@@ -13,7 +13,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import ATTR_RULE_ID, CONF_ENABLE_RULES, DOMAIN
 from .coordinator import FirewallaCoordinator
-from .helpers import first_box_id
+from .helpers import first_box_id, rule_display_name
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -81,14 +81,8 @@ class FirewallaRuleSwitch(CoordinatorEntity[FirewallaCoordinator], SwitchEntity)
         self._rule_id = rule["id"]
         self._attr_unique_id = f"{DOMAIN}_rule_switch_{self._rule_id}"
 
-        action = rule.get("action", "Rule").capitalize()
-        target = (
-            rule.get("notes")
-            or rule.get("target", {}).get("value")
-            or rule.get("scope", {}).get("value")
-            or self._rule_id
-        )
-        self._attr_name = f"{action}: {target}"
+        devices = coordinator.data.get("devices", []) if coordinator.data else []
+        self._attr_name = rule_display_name(rule, devices)
 
         box_id = rule.get("gid") or first_box_id(coordinator.data)
         self._attr_device_info = DeviceInfo(
