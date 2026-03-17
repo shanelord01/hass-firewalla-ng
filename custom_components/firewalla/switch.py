@@ -1,4 +1,4 @@
-"""Switch platform for Firewalla — firewall rule active/paused toggle."""
+"""Switch platform for Firewalla - firewall rule active/paused toggle."""
 from __future__ import annotations
 
 import logging
