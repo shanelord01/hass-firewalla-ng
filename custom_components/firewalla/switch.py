@@ -83,9 +83,9 @@ class FirewallaRuleSwitch(CoordinatorEntity[FirewallaCoordinator], SwitchEntity)
 
         action = rule.get("action", "Rule").capitalize()
         target = (
-            rule.get("target", {}).get("value")
+            rule.get("notes")
+            or rule.get("target", {}).get("value")
             or rule.get("scope", {}).get("value")
-            or rule.get("notes")
             or self._rule_id
         )
         self._attr_name = f"{action}: {target}"

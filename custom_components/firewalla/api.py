@@ -292,6 +292,12 @@ class FirewallaApiClient:
             params["cursor"] = next_cursor
 
         _LOGGER.debug("Retrieved %d rules", len(all_rules))
+
+        # Temporary diagnostic: log full payload for any rule to inspect API structure.
+        # Remove after confirming field names for target/scope/device naming.
+        for rule in all_rules:
+            _LOGGER.debug("Rule payload: %s", rule)
+
         return all_rules
 
     async def get_alarms(self) -> list[dict[str, Any]]:
