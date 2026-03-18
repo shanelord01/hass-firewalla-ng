@@ -121,12 +121,12 @@ services:
 # Pause a rule
 action: switch.turn_off
 target:
-  entity_id: switch.shasam_firewalla_block_test_user
+  entity_id: switch.my_firewalla_block_test_user
 
 # Resume a rule
 action: switch.turn_on
 target:
-  entity_id: switch.shasam_firewalla_block_test_user
+  entity_id: switch.my_firewalla_block_test_user
 ```
 
 You can find the exact entity ID in **Settings → Devices & Services → [your Firewalla box] → entities**.
