@@ -62,6 +62,19 @@ class FirewallaApiClient:
             headers["Authorization"] = f"Token {self._api_token}"
         return headers
 
+    def is_rate_limited(self) -> bool:
+        """True iff a previous 429 set a backoff that hasn't elapsed.
+
+        Coordinator callers consult this when interpreting an empty
+        response — an empty result during rate-limited state isn't an
+        API failure, it's the guard at the top of `_api_request`
+        short-circuiting. Treating it as failure has caused a
+        first-refresh → ConfigEntryNotReady → retry-setup loop that
+        recreates this client (resetting `_rate_limited_until` to 0),
+        defeating the guard.
+        """
+        return time.monotonic() < self._rate_limited_until
+
     async def _api_request(
         self,
         method: str,
