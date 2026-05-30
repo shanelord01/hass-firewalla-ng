@@ -233,6 +233,24 @@ class FirewallaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             devices = []
 
         if not boxes and not devices:
+            # Rate-limited responses route through the same None-return
+            # path as genuine API failures, but they're semantically
+            # different: we KNOW the server is reachable, we're just
+            # being throttled. Raising UpdateFailed propagates to
+            # ConfigEntryNotReady inside async_config_entry_first_refresh,
+            # which makes HA retry async_setup_entry, which creates a
+            # fresh FirewallaApiClient with `_rate_limited_until=0` —
+            # the guard at the top of _api_request never gets a chance
+            # to fire, and we send the same request straight back into
+            # a 429. During backoff, return ([],[]) instead so the
+            # entry setup completes and the live client's guard takes
+            # over on subsequent polls.
+            if self._client.is_rate_limited():
+                _LOGGER.info(
+                    "rate-limited — returning empty boxes/devices "
+                    "without raising; backoff will run out naturally"
+                )
+                return [], []
             raise UpdateFailed("Both boxes and devices endpoints returned empty — possible API failure")
 
         # Apply box filter if configured
